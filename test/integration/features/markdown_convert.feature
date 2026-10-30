@@ -99,3 +99,74 @@ Feature: /forms/markdown/convert
     When I make a "POST" request to Gotenberg at the "/forms/markdown/convert" endpoint with the following form data and header(s):
       | files | testdata/markdown/hello.txt | file |
     Then the response status code should be 404
+
+  @markdown-office
+  Scenario: POST /forms/markdown/convert (DOCX)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/markdown/convert" endpoint with the following form data and header(s):
+      | files | testdata/markdown/office-notes.docx | file |
+    Then the response status code should be 200
+    Then the response body should contain string:
+      """
+      AlphaHeading
+      """
+    Then the response body should contain string:
+      """
+      BravoBullet
+      """
+    Then the response body should contain string:
+      """
+      CharlieLink
+      """
+    Then the response body should contain string:
+      """
+      DeltaCell
+      """
+    Then there should be the following file(s) in the response:
+      | office-notes.md |
+
+  @markdown-office
+  Scenario: POST /forms/markdown/convert (XLSX)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/markdown/convert" endpoint with the following form data and header(s):
+      | files | testdata/markdown/office-book.xlsx | file |
+    Then the response status code should be 200
+    Then the response body should contain string:
+      """
+      Fruit
+      """
+    Then the response body should contain string:
+      """
+      Apple
+      """
+    Then the response body should contain string:
+      """
+      Totals
+      """
+    Then there should be the following file(s) in the response:
+      | office-book.md |
+
+  @markdown-office
+  Scenario: POST /forms/markdown/convert (PPTX)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/markdown/convert" endpoint with the following form data and header(s):
+      | files | testdata/markdown/office-deck.pptx | file |
+    Then the response status code should be 200
+    Then the response body should contain string:
+      """
+      SlideOne
+      """
+    Then the response body should contain string:
+      """
+      FirstPoint
+      """
+    Then the response body should contain string:
+      """
+      SlideTwo
+      """
+    Then the response body should contain string:
+      """
+      SecondPoint
+      """
+    Then there should be the following file(s) in the response:
+      | office-deck.md |

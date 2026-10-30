@@ -9,6 +9,7 @@ import (
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/htmlmarkdown/urlroute"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
+	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/office"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/pdfengine"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/markdown"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/pdfcpu"

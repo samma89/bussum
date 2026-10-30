@@ -52,7 +52,7 @@ var (
 	ErrIoException = errors.New("io exception")
 
 	// ErrCannotConvertException happens when unoconverter returns exit code 4.
-	// LibreOffice read the document but could not convert it to PDF.
+	// LibreOffice read the document but could not convert it to the requested format.
 	ErrCannotConvertException = errors.New("cannot convert exception")
 
 	// ErrIllegalArgumentException happens when unoconverter returns exit code
@@ -333,6 +333,10 @@ func DefaultOptions() Options {
 // Uno is an abstraction on top of the Universal Network Objects API.
 type Uno interface {
 	Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
+	// Html exports the document to an HTML file at outputPath.
+	// LibreOffice may write companion files (images, per-slide pages) into the
+	// same directory. The caller owns that directory.
+	Html(ctx context.Context, logger *slog.Logger, inputPath, outputPath string) error
 	Extensions() []string
 }
 
@@ -704,6 +708,41 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 	)
 	span.SetAttributes(conversionRequestAttributes(inputPath, options)...)
 
+	return a.supervise(ctx, span, logger, outputPath, true, func() error {
+		return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
+	})
+}
+
+// Html exports a document to HTML through the running LibreOffice process.
+//
+// outputPath is the HTML file. LibreOffice may write companion files, such as
+// images and per-slide pages, into the same directory. The caller owns that
+// directory. The conversion uses the same process supervisor, queue, and
+// restart policy as [Api.Pdf].
+func (a *Api) Html(ctx context.Context, logger *slog.Logger, inputPath, outputPath string) error {
+	ctx, span := gotenberg.Tracer().Start(ctx, "libreoffice.Html",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(a.spanAttrs()...),
+	)
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.Int64("gotenberg.queue.depth_at_arrival", a.supervisor.ReqQueueSize()),
+		attribute.Int64("gotenberg.conversions_since_last_restart", a.supervisor.ConversionsSinceRestart()),
+	)
+	if info, err := os.Stat(inputPath); err == nil {
+		span.SetAttributes(attribute.Int64("gotenberg.conversion.input.bytes", info.Size()))
+	}
+
+	return a.supervise(ctx, span, logger, outputPath, false, func() error {
+		return a.libreOffice.html(ctx, logger, inputPath, outputPath)
+	})
+}
+
+// supervise runs one LibreOffice conversion on the shared process, records its
+// metrics, and retries a core dump. recordPDFSize writes the PDF output-size
+// histogram. HTML export leaves that histogram alone: it is the PDF series.
+func (a *Api) supervise(ctx context.Context, span trace.Span, logger *slog.Logger, outputPath string, recordPDFSize bool, task func() error) error {
 	// ErrCoreDumped happens randomly (https://github.com/gotenberg/gotenberg/issues/639);
 	// retry the conversion, but cap the retries so a permanently failing
 	// document cannot loop forever. Each attempt records its own metrics.
@@ -717,10 +756,9 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 
 		err = a.supervisor.Run(ctx, logger, func() error {
 			conversionStart = time.Now()
-			return a.libreOffice.pdf(ctx, logger, inputPath, outputPath, options)
+			return task()
 		})
 
-		// Determine status and error reason.
 		status := "success"
 		reason = ""
 
@@ -732,7 +770,6 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 			reason = libreofficeErrorType(err)
 		}
 
-		// Record metrics for this attempt.
 		attrs := metric.WithAttributes(attribute.String("status", status))
 		a.reqsCounter.Add(ctx, 1, attrs)
 
@@ -751,7 +788,9 @@ func (a *Api) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPat
 		if err == nil {
 			stat, statErr := os.Stat(outputPath)
 			if statErr == nil {
-				a.pdfOutputSizeCounter.Record(ctx, stat.Size(), attrs)
+				if recordPDFSize {
+					a.pdfOutputSizeCounter.Record(ctx, stat.Size(), attrs)
+				}
 				span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", stat.Size()))
 			}
 

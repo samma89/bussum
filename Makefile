@@ -175,6 +175,7 @@ NO_CONCURRENCY=false
 # markdown
 # markdown-convert
 # markdown-convert-html
+# markdown-office
 # markdown-pdf
 # output-filename
 # pdfengines

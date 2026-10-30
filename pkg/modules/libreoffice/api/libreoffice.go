@@ -19,6 +19,7 @@ import (
 type libreOffice interface {
 	gotenberg.Process
 	pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
+	html(ctx context.Context, logger *slog.Logger, inputPath, outputPath string) error
 }
 
 type libreOfficeArguments struct {
@@ -446,25 +447,52 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 
 	args = append(args, "--output", outputPath, inputPath)
 
+	logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", options))
+
+	return p.execUno(ctx, logger, args, "convert to PDF")
+}
+
+func (p *libreOfficeProcess) html(ctx context.Context, logger *slog.Logger, inputPath, outputPath string) error {
+	if !p.isStarted.Load() {
+		return errors.New("LibreOffice not started, cannot handle HTML conversion")
+	}
+
+	args := []string{
+		"--no-launch",
+		"--format",
+		"html",
+		"--port",
+		fmt.Sprintf("%d", p.socketPort),
+	}
+	if logger.Enabled(ctx, slog.LevelDebug) {
+		args = append(args, "-vvv")
+	}
+
+	args = append(args, "--output", outputPath, inputPath)
+
+	logger.DebugContext(ctx, "export document to HTML")
+
+	return p.execUno(ctx, logger, args, "convert to HTML")
+}
+
+// execUno runs unoconverter against the running LibreOffice socket.
+// action is the wrapped error prefix, so PDF and HTML failures stay distinct
+// in the log. Exit codes come from unoconverter's exception class, not from a
+// diagnosis. Exit codes 5 and 6 are ambiguous, so the route decides the HTTP
+// status from the request and the document. See
+// https://github.com/gotenberg/gotenberg/issues/1588.
+func (p *libreOfficeProcess) execUno(ctx context.Context, logger *slog.Logger, args []string, action string) error {
 	cmd, err := gotenberg.CommandContext(ctx, logger, p.arguments.unoBinPath, args...)
 	if err != nil {
 		return fmt.Errorf("create uno command: %w", err)
 	}
-
-	logger.DebugContext(ctx, fmt.Sprintf("print to PDF with: %+v", options))
 
 	exitCode, err := cmd.Exec()
 	if err == nil {
 		return nil
 	}
 
-	// LibreOffice's errors are not explicit: unoconverter derives its exit code
-	// from the UNO exception class it caught, not from a diagnosis. Exit codes
-	// 5 and 6 are ambiguous in particular, so the route decides the HTTP status
-	// from the request and the document rather than from the code alone.
-	// See https://github.com/gotenberg/gotenberg/issues/1588.
-
-	// We may want to retry in case of a core-dumped event.
+	// A core dump is retried by the caller.
 	// See https://github.com/gotenberg/gotenberg/issues/639.
 	if strings.Contains(err.Error(), "core dumped") {
 		return ErrCoreDumped
@@ -483,7 +511,7 @@ func (p *libreOfficeProcess) pdf(ctx context.Context, logger *slog.Logger, input
 		return ErrIllegalArgumentException
 	}
 
-	return fmt.Errorf("convert to PDF: %w", err)
+	return fmt.Errorf("%s: %w", action, err)
 }
 
 // Interface guards.

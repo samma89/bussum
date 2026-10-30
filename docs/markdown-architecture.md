@@ -186,6 +186,28 @@ A rendered page has no local companion files, so `extractImages` on this route o
 - Language hints other than `language-*` and `lang-*` are ignored.
 - Consecutive lists are separated by a blank line. The library's `<!--THE END-->` list marker is disabled.
 
+## Office engine
+
+The `office` module (`pkg/modules/libreoffice/office`) converts `.docx`, `.doc`, `.xlsx`, `.xls`, `.pptx`, `.ppt`, `.odt`, `.ods`, `.odp`, and `.rtf`. The module ID is `office`. It is blank-imported by the standard build and the LibreOffice build, next to the `html` module. The Chromium build does not import it, because that build has no LibreOffice process.
+
+LibreOffice exports HTML through the same supervised process as PDF conversion. `Api.Html` runs `unoconverter --format html` on that process, so the queue, the restart policy, and the start timeout stay the LibreOffice flags that already exist. This module adds no flag. The request context is the conversion deadline.
+
+The export is shaped, then passed to `ConvertHTMLBytes`. That is the HTML engine's converter, including flavour and image extraction. Shaping before that call is the part that is specific to Office: one heading per sheet, one section per slide, CSS bold, italic, and line-through turned into elements the converter already knows, and checkbox list items rewritten to `- [ ]` and `- [x]`.
+
+Spreadsheets become one table per sheet. A sheet that has no heading in the HTML gets one. The title comes from the workbook (`xl/workbook.xml`, or the ODS `table:name`) and otherwise from `Sheet N`. Legacy `.xls` has no XML sheet list, so it uses `Sheet N` when the export omits the name. Presentations become one section per slide. Impress publishes a frameset and one HTML file per slide (`text0.html`, `text1.html`, and so on). Those files are concatenated. The slide title is the section heading. `imgN.html`, the outline, and the speaker notes are not extra sections.
+
+`extractImages` is the HTML engine's behavior. `true` writes each local image and data URI into `ImageDir` as `{stem}-{n}.{ext}` and links that base name. `false` leaves the image link and writes no file. Paths that leave the export directory are ignored. Remote `http` and `https` URLs stay remote and are not downloaded.
+
+### Quality limits
+
+- The Markdown is linear. Text boxes, floating shapes, SmartArt, headers, footers, comments, and tracked changes are dropped or flattened. Fonts and colors do not survive.
+- Spreadsheet formulas become the cached displayed values. Charts are images or are omitted. Merged cells follow the table plugin. Column widths are dropped.
+- Slide masters, animations, and speaker notes are omitted. A slide that is only a positioned drawing may come through as an image, or as an empty section.
+- Password-protected documents fail. The convert route has no password field.
+- `commonmark` does not emit GFM tables, `~~strikethrough~~`, or task lists. The checkbox rewrite runs only for `gfm`.
+- Image limits are the HTML engine's: 200 images, 32 MiB each, 64 MiB together. Extensions the HTML engine does not treat as images, including `.emf` and `.wmf`, are left as links.
+- A document LibreOffice cannot open fails the request. The client sees `Internal Server Error`. The log has the wrapped error.
+
 ## PDF engine
 
 The `pdf` module converts `.pdf`. The package is `pkg/modules/pdfmarkdown`. The module ID is `pdf`.
