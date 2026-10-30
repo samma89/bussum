@@ -11,6 +11,7 @@ import (
 type ApiMock struct {
 	PdfMock        func(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
 	ScreenshotMock func(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error
+	HTMLMock       func(ctx context.Context, logger *slog.Logger, url string, options Options) (string, error)
 }
 
 func (api *ApiMock) Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error {
@@ -21,11 +22,16 @@ func (api *ApiMock) Screenshot(ctx context.Context, logger *slog.Logger, url, ou
 	return api.ScreenshotMock(ctx, logger, url, outputPath, options)
 }
 
+func (api *ApiMock) HTML(ctx context.Context, logger *slog.Logger, url string, options Options) (string, error) {
+	return api.HTMLMock(ctx, logger, url, options)
+}
+
 // browserMock is a mock for the [browser] interface.
 type browserMock struct {
 	gotenberg.ProcessMock
 	pdfMock        func(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions, aggregate *networkAggregate) error
 	screenshotMock func(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions, aggregate *networkAggregate) error
+	htmlMock       func(ctx context.Context, logger *slog.Logger, url string, options Options, aggregate *networkAggregate) (string, error)
 }
 
 func (b *browserMock) pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions, aggregate *networkAggregate) error {
@@ -34,6 +40,10 @@ func (b *browserMock) pdf(ctx context.Context, logger *slog.Logger, url, outputP
 
 func (b *browserMock) screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions, aggregate *networkAggregate) error {
 	return b.screenshotMock(ctx, logger, url, outputPath, options, aggregate)
+}
+
+func (b *browserMock) html(ctx context.Context, logger *slog.Logger, url string, options Options, aggregate *networkAggregate) (string, error) {
+	return b.htmlMock(ctx, logger, url, options, aggregate)
 }
 
 // Interface guards.

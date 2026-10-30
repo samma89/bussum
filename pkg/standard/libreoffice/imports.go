@@ -4,6 +4,7 @@ import (
 	// Gotenberg modules (LibreOffice variant — no Chromium).
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/api"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/exiftool"
+	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/htmlmarkdown"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/pdfengine"
