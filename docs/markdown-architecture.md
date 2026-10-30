@@ -151,3 +151,25 @@ Out of scope. OCR needs an engine such as Tesseract, plus a layout pass, and it 
 - PDF: an engine for `.pdf`, and `poppler-utils` in the image.
 
 The integration scenario `test/integration/features/markdown_convert.feature` treats `.xyz` as unsupported so those units do not have to edit it. A unit that wants a new form field adds it with a default that preserves the current response.
+
+## Office engine
+
+The `office` module (`pkg/modules/libreoffice/office`) converts `.docx`, `.doc`, `.xlsx`, `.xls`, `.pptx`, `.ppt`, `.odt`, `.ods`, `.odp`, and `.rtf`. The module ID is `office`. It is blank-imported by the standard build and the LibreOffice build. The Chromium build does not import it, because that build has no LibreOffice process.
+
+LibreOffice exports HTML through the same supervised process as PDF conversion. `Api.Html` runs `unoconverter --format html` on that process, so the queue, the restart policy, and the start timeout stay the LibreOffice flags that already exist. This module adds no flag. The request context is the conversion deadline.
+
+`github.com/JohannesKaufmann/html-to-markdown/v2` turns the HTML into Markdown. v2.5.2 has no single GFM plugin. GFM is the `table` and `strikethrough` plugins, plus a rewrite of checkbox list items into `- [ ]` and `- [x]`. `commonmark` skips those plugins, so tables, strikethrough, and task lists stay plain text.
+
+Spreadsheets become one table per sheet. A sheet that has no heading in the HTML gets one. The title comes from the workbook (`xl/workbook.xml`, or the ODS `table:name`) and otherwise from `Sheet N`. Legacy `.xls` has no XML sheet list, so it uses `Sheet N` when the export omits the name. Presentations become one section per slide. Impress publishes a frameset and one HTML file per slide (`text0.html`, `text1.html`, and so on). Those files are concatenated. The slide title is the section heading. `imgN.html`, the outline, and the speaker notes are not extra sections.
+
+`extractImages` false keeps the alt text and writes no image file. `true` writes each embedded image into `ImageDir` as `{stem}-{n}.{ext}` and links that base name. The stem is the upload name, with characters outside `[A-Za-z0-9._-]` removed, so two documents in one zip do not collide. Remote `http` and `https` image URLs stay remote. They are not downloaded.
+
+### Quality limits
+
+- The Markdown is linear. Text boxes, floating shapes, SmartArt, headers, footers, comments, and tracked changes are dropped or flattened. Fonts and colors do not survive.
+- Spreadsheet formulas become the cached displayed values. Charts are images or are omitted. Merged cells follow the table plugin (an empty cell, or the same text repeated). Column widths are dropped.
+- Slide masters, animations, and speaker notes are omitted. A slide that is only a positioned drawing may come through as an image, or as an empty section.
+- Password-protected documents fail. The convert route has no password field.
+- `commonmark` does not emit GFM tables, `~~strikethrough~~`, or task lists.
+- An image whose source is outside the export directory is not copied. The alt text remains. `file://` paths are held to that directory.
+- A document LibreOffice cannot open fails the request. The client sees `Internal Server Error`. The log has the wrapped error.

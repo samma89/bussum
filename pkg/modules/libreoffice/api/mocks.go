@@ -11,11 +11,20 @@ import (
 // ApiMock is a mock for the [Uno] interface.
 type ApiMock struct {
 	PdfMock        func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
+	HtmlMock       func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string) error
 	ExtensionsMock func() []string
 }
 
 func (api *ApiMock) Pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
 	return api.PdfMock(ctx, logger, inputPath, outputPath, options)
+}
+
+func (api *ApiMock) Html(ctx context.Context, logger *slog.Logger, inputPath, outputPath string) error {
+	if api.HtmlMock == nil {
+		return errors.New("html mock is not set")
+	}
+
+	return api.HtmlMock(ctx, logger, inputPath, outputPath)
 }
 
 func (api *ApiMock) Extensions() []string {
@@ -36,7 +45,8 @@ type libreOfficeMock struct {
 	errCoreDumpedCount int
 
 	gotenberg.ProcessMock
-	pdfMock func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
+	pdfMock  func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error
+	htmlMock func(ctx context.Context, logger *slog.Logger, inputPath, outputPath string) error
 }
 
 func (b *libreOfficeMock) pdf(ctx context.Context, logger *slog.Logger, inputPath, outputPath string, options Options) error {
@@ -48,6 +58,14 @@ func (b *libreOfficeMock) pdf(ctx context.Context, logger *slog.Logger, inputPat
 		return nil
 	}
 	return err
+}
+
+func (b *libreOfficeMock) html(ctx context.Context, logger *slog.Logger, inputPath, outputPath string) error {
+	if b.htmlMock == nil {
+		return errors.New("html mock is not set")
+	}
+
+	return b.htmlMock(ctx, logger, inputPath, outputPath)
 }
 
 // Interface guards.
