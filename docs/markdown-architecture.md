@@ -151,3 +151,37 @@ Out of scope. OCR needs an engine such as Tesseract, plus a layout pass, and it 
 - PDF: an engine for `.pdf`, and `poppler-utils` in the image.
 
 The integration scenario `test/integration/features/markdown_convert.feature` treats `.xyz` as unsupported so those units do not have to edit it. A unit that wants a new form field adds it with a default that preserves the current response.
+
+## HTML engine
+
+The `html` module (ID `html`, package `pkg/modules/htmlmarkdown`) converts `.html` and `.htm`. It does not import Chromium. The LibreOffice image converts an uploaded HTML file. JavaScript in that file does not run.
+
+The converter is `github.com/JohannesKaufmann/html-to-markdown/v2`. v2 has no single GitHub Flavored Markdown plugin yet. The upstream README still lists that plugin as planned. `FlavourGFM` enables the published table and strikethrough plugins, and writes `<https://example.com>` when the link text is the URL. `FlavourCommonMark` uses the base and commonmark plugins only, so a table becomes text and strikethrough loses the `~~` marks. A zero flavour means GFM, which is also the route default.
+
+`ConvertHTML` and `ConvertHTMLBytes` are exported. An office engine can call them with the HTML LibreOffice wrote and the same `Options` the route built. Relative images are read from the directory that contains the input file.
+
+`extractImages` writes data URIs and those local image files into `ImageDir`. The Markdown link is the base name, prefixed with the document stem (`notes-1.png`). Paths that leave the input directory are ignored. `http` and `https` image URLs stay as links. This engine does not fetch them. `srcset` is ignored. Files whose extension is not an image extension are ignored. One document may contain at most 200 images, 32 MiB each, 64 MiB together. The HTML document itself may be at most 32 MiB.
+
+`script`, `style`, and `nav` are removed, and so is any element whose `role` is `navigation`. The library also drops `head`, `iframe`, comments, and form controls. `noscript` is kept, because that is the text a static conversion can see. A code block picks up a language hint from a `language-*` or `lang-*` class on `pre` or `code`.
+
+### URL route
+
+`POST /forms/markdown/convert/url` is a separate route, served by the `htmlurl` module in `pkg/modules/htmlmarkdown/urlroute`. The file route is unchanged: an empty `files` field is still HTTP 400. The URL route takes `url` instead of a file, so the two calls do not overload one form.
+
+The route is wired into the standard image and the Chromium image. It is not imported by the LibreOffice image, because the package imports Chromium and that image must not register Chromium.
+
+`flavour` and `extractImages` mean the same thing as on the file route, including the process defaults. The other form fields are Chromium's common options (`chromium.FormDataChromiumOptions`): `waitDelay`, `waitForExpression`, `extraHttpHeaders`, and the rest of that set. PDF options are not accepted.
+
+Chromium renders the page. The route reads `document.documentElement.outerHTML` through `chromium.HTML`, then calls `ConvertHTMLBytes`. Navigation uses the same browser session as PDF conversion, so `--chromium-allow-list`, `--chromium-deny-list`, `--chromium-deny-private-ips`, and `--chromium-deny-public-ips` apply. `file://` and any scheme other than `http` or `https` is HTTP 400 before Chromium starts. The default output name is `document.md`. `Gotenberg-Output-Filename` renames it. `--markdown-disable-routes` disables this route together with the file route.
+
+A rendered page has no local companion files, so `extractImages` on this route only unpacks data URIs.
+
+### Limits
+
+- Uploaded HTML is decoded as UTF-8. A charset meta tag is not applied. A leading UTF-8 BOM is stripped. The URL route receives UTF-8 from Chromium.
+- Task list checkboxes are not converted. v2 has no task list plugin yet.
+- A table cell that contains a newline is left as text. The table plugin skips those tables.
+- `iframe` content is dropped.
+- Images are not deduplicated.
+- Language hints other than `language-*` and `lang-*` are ignored.
+- Consecutive lists are separated by a blank line. The library's `<!--THE END-->` list marker is disabled.

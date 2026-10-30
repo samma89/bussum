@@ -173,6 +173,7 @@ NO_CONCURRENCY=false
 # libreoffice-ssrf
 # markdown
 # markdown-convert
+# markdown-convert-html
 # output-filename
 # pdfengines
 # pdfengines-convert

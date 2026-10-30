@@ -1,0 +1,45 @@
+meta {
+  name: Convert URL to Markdown
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/forms/markdown/convert/url
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  url: https://example.com
+  ~flavour: gfm
+  ~extractImages: false
+  ~skipNetworkIdleEvent: true
+  ~skipNetworkAlmostIdleEvent: true
+  ~failOnHttpStatusCodes: [499,599]
+  ~failOnResourceHttpStatusCodes: []
+  ~ignoreResourceHttpStatusDomains: []
+  ~failOnResourceLoadingFailed: false
+  ~failOnConsoleExceptions: false
+  ~failOnConsoleMessageTypes: []
+  ~waitDelay: 0s
+  ~waitWindowStatus:
+  ~waitForExpression: window.__ready === true
+  ~waitForSelector:
+  ~cookies: [{"name":"my_cookie","value":"my_value","domain":"example.com"}]
+  ~userAgent:
+  ~extraHttpHeaders: {"X-Custom-Header":"value"}
+  ~emulatedMediaType:
+  ~emulatedMediaFeatures: {"prefers-color-scheme":"dark"}
+  ~omitBackground: false
+}
+
+headers {
+  ~Gotenberg-Output-Filename: my-notes
+  ~Gotenberg-Webhook-Url: http://localhost:8080/webhook
+  ~Gotenberg-Webhook-Error-Url: http://localhost:8080/webhook/error
+  ~Gotenberg-Webhook-Events-Url: http://localhost:8080/webhook/events
+  ~Gotenberg-Webhook-Method: POST
+  ~Gotenberg-Webhook-Error-Method: POST
+  ~Gotenberg-Webhook-Extra-Http-Headers: {"X-Custom":"value"}
+}

@@ -3,6 +3,7 @@ module github.com/gotenberg/gotenberg/v8
 go 1.27.3
 
 require (
+	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2
 	github.com/alexliesenfeld/health v0.8.1
 	github.com/chromedp/cdproto v0.0.0-20250803210736-d308e07a266d // pinned with chromedp v0.14.2, see below
 	github.com/chromedp/chromedp v0.14.2 // pinned: v0.15.x breaks the headless print-mode paint pipeline (rAF / ResizeObserver / IntersectionObserver stop firing, blank charts). See https://github.com/gotenberg/gotenberg/issues/1535.
@@ -41,6 +42,7 @@ require (
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20261013165250-51075c6ea6bc // indirect
+	github.com/JohannesKaufmann/dom v0.3.1 // indirect
 	github.com/Microsoft/go-winio v0.6.4 // indirect
 	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
