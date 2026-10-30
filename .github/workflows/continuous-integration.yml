@@ -64,6 +64,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install Poppler
+        run: sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends poppler-utils
+
       - name: Run tests
         run: make test-unit
 
