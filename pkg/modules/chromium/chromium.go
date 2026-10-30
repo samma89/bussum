@@ -454,10 +454,20 @@ type ExtraHttpHeader struct {
 	Scope *regexp2.Regexp
 }
 
-// Api helps to interact with Chromium for converting HTML documents to PDF.
+// Api helps to interact with Chromium.
+//
+// Pdf and Screenshot write a file. HTML returns the rendered document, after
+// the same navigation, waits, and URL policy as the other two.
 type Api interface {
 	Pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions) error
 	Screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions) error
+
+	// HTML renders url and returns document.documentElement.outerHTML.
+	//
+	// options carries the waits and extra headers. The allow-list, deny-list,
+	// and IP policy configured on the Chromium module apply, because HTML
+	// uses the same browser session as [Api.Pdf].
+	HTML(ctx context.Context, logger *slog.Logger, url string, options Options) (string, error)
 }
 
 // Provider is a module interface that exposes a method for creating an [Api]
@@ -1058,6 +1068,91 @@ func (mod *Chromium) Screenshot(ctx context.Context, logger *slog.Logger, url, o
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 	return err
+}
+
+// HTML renders url in Chromium and returns document.documentElement.outerHTML.
+//
+// The caller converts that HTML. PDF and screenshot options do not apply.
+// A cancelled context stops the render.
+//
+//nolint:dupl
+func (mod *Chromium) HTML(ctx context.Context, logger *slog.Logger, url string, options Options) (string, error) {
+	inputAttrs := conversionInputAttrs(ctx, url)
+
+	ctx, span := gotenberg.Tracer().Start(ctx, "chromium.HTML",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(mod.spanAttrs()...),
+	)
+	defer span.End()
+
+	span.SetAttributes(inputAttrs...)
+	span.SetAttributes(
+		attribute.Int64("gotenberg.queue.depth_at_arrival", mod.supervisor.ReqQueueSize()),
+		attribute.Int64("gotenberg.conversions_since_last_restart", mod.supervisor.ConversionsSinceRestart()),
+	)
+
+	start := time.Now()
+	var conversionStart time.Time
+
+	var html string
+	aggregate := newNetworkAggregate()
+	err := mod.supervisor.Run(ctx, logger, func() error {
+		conversionStart = time.Now()
+		var runErr error
+		html, runErr = mod.browser.html(ctx, logger, url, options, aggregate)
+		return runErr
+	})
+
+	end := time.Now()
+
+	status := "success"
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			status = "timeout"
+		} else {
+			status = "error"
+		}
+
+		reason := chromiumErrorType(err, "chromium_unavailable")
+
+		mod.errsCounter.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("reason", reason),
+		))
+		gotenberg.SpanErrorType(span, reason)
+	}
+
+	if !conversionStart.IsZero() {
+		waitDuration := conversionStart.Sub(start).Seconds()
+		conversionDuration := end.Sub(conversionStart).Seconds()
+
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+		mod.conversionDurationCounter.Record(ctx, conversionDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	} else {
+		waitDuration := end.Sub(start).Seconds()
+		mod.queueWaitDurationCounter.Record(ctx, waitDuration, metric.WithAttributes(
+			attribute.String("status", status),
+		))
+	}
+
+	mod.reqsCounter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("status", status),
+	))
+
+	mod.recordNetwork(ctx, span, aggregate)
+
+	if err == nil {
+		span.SetAttributes(attribute.Int64("gotenberg.conversion.output.bytes", int64(len(html))))
+		span.SetStatus(codes.Ok, "")
+		return html, nil
+	}
+
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	return "", err
 }
 
 // recordNetwork lifts per-conversion network aggregates onto the span and the
