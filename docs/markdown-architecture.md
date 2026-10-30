@@ -152,24 +152,58 @@ Out of scope. OCR needs an engine such as Tesseract, plus a layout pass, and it 
 
 The integration scenario `test/integration/features/markdown_convert.feature` treats `.xyz` as unsupported so those units do not have to edit it. A unit that wants a new form field adds it with a default that preserves the current response.
 
+## HTML engine
+
+The `html` module (ID `html`, package `pkg/modules/htmlmarkdown`) converts `.html` and `.htm`. It does not import Chromium. The LibreOffice image converts an uploaded HTML file. JavaScript in that file does not run.
+
+The converter is `github.com/JohannesKaufmann/html-to-markdown/v2`. v2 has no single GitHub Flavored Markdown plugin yet. The upstream README still lists that plugin as planned. `FlavourGFM` enables the published table and strikethrough plugins, and writes `<https://example.com>` when the link text is the URL. `FlavourCommonMark` uses the base and commonmark plugins only, so a table becomes text and strikethrough loses the `~~` marks. A zero flavour means GFM, which is also the route default.
+
+`ConvertHTML` and `ConvertHTMLBytes` are exported. An office engine can call them with the HTML LibreOffice wrote and the same `Options` the route built. Relative images are read from the directory that contains the input file.
+
+`extractImages` writes data URIs and those local image files into `ImageDir`. The Markdown link is the base name, prefixed with the document stem (`notes-1.png`). Paths that leave the input directory are ignored. `http` and `https` image URLs stay as links. This engine does not fetch them. `srcset` is ignored. Files whose extension is not an image extension are ignored. One document may contain at most 200 images, 32 MiB each, 64 MiB together. The HTML document itself may be at most 32 MiB.
+
+`script`, `style`, and `nav` are removed, and so is any element whose `role` is `navigation`. The library also drops `head`, `iframe`, comments, and form controls. `noscript` is kept, because that is the text a static conversion can see. A code block picks up a language hint from a `language-*` or `lang-*` class on `pre` or `code`.
+
+### URL route
+
+`POST /forms/markdown/convert/url` is a separate route, served by the `htmlurl` module in `pkg/modules/htmlmarkdown/urlroute`. The file route is unchanged: an empty `files` field is still HTTP 400. The URL route takes `url` instead of a file, so the two calls do not overload one form.
+
+The route is wired into the standard image and the Chromium image. It is not imported by the LibreOffice image, because the package imports Chromium and that image must not register Chromium.
+
+`flavour` and `extractImages` mean the same thing as on the file route, including the process defaults. The other form fields are Chromium's common options (`chromium.FormDataChromiumOptions`): `waitDelay`, `waitForExpression`, `extraHttpHeaders`, and the rest of that set. PDF options are not accepted.
+
+Chromium renders the page. The route reads `document.documentElement.outerHTML` through `chromium.HTML`, then calls `ConvertHTMLBytes`. Navigation uses the same browser session as PDF conversion, so `--chromium-allow-list`, `--chromium-deny-list`, `--chromium-deny-private-ips`, and `--chromium-deny-public-ips` apply. `file://` and any scheme other than `http` or `https` is HTTP 400 before Chromium starts. The default output name is `document.md`. `Gotenberg-Output-Filename` renames it. `--markdown-disable-routes` disables this route together with the file route.
+
+A rendered page has no local companion files, so `extractImages` on this route only unpacks data URIs.
+
+### Limits
+
+- Uploaded HTML is decoded as UTF-8. A charset meta tag is not applied. A leading UTF-8 BOM is stripped. The URL route receives UTF-8 from Chromium.
+- Task list checkboxes are not converted. v2 has no task list plugin yet.
+- A table cell that contains a newline is left as text. The table plugin skips those tables.
+- `iframe` content is dropped.
+- Images are not deduplicated.
+- Language hints other than `language-*` and `lang-*` are ignored.
+- Consecutive lists are separated by a blank line. The library's `<!--THE END-->` list marker is disabled.
+
 ## Office engine
 
-The `office` module (`pkg/modules/libreoffice/office`) converts `.docx`, `.doc`, `.xlsx`, `.xls`, `.pptx`, `.ppt`, `.odt`, `.ods`, `.odp`, and `.rtf`. The module ID is `office`. It is blank-imported by the standard build and the LibreOffice build. The Chromium build does not import it, because that build has no LibreOffice process.
+The `office` module (`pkg/modules/libreoffice/office`) converts `.docx`, `.doc`, `.xlsx`, `.xls`, `.pptx`, `.ppt`, `.odt`, `.ods`, `.odp`, and `.rtf`. The module ID is `office`. It is blank-imported by the standard build and the LibreOffice build, next to the `html` module. The Chromium build does not import it, because that build has no LibreOffice process.
 
 LibreOffice exports HTML through the same supervised process as PDF conversion. `Api.Html` runs `unoconverter --format html` on that process, so the queue, the restart policy, and the start timeout stay the LibreOffice flags that already exist. This module adds no flag. The request context is the conversion deadline.
 
-`github.com/JohannesKaufmann/html-to-markdown/v2` turns the HTML into Markdown. v2.5.2 has no single GFM plugin. GFM is the `table` and `strikethrough` plugins, plus a rewrite of checkbox list items into `- [ ]` and `- [x]`. `commonmark` skips those plugins, so tables, strikethrough, and task lists stay plain text.
+The export is shaped, then passed to `ConvertHTMLBytes`. That is the HTML engine's converter, including flavour and image extraction. Shaping before that call is the part that is specific to Office: one heading per sheet, one section per slide, CSS bold, italic, and line-through turned into elements the converter already knows, and checkbox list items rewritten to `- [ ]` and `- [x]`.
 
 Spreadsheets become one table per sheet. A sheet that has no heading in the HTML gets one. The title comes from the workbook (`xl/workbook.xml`, or the ODS `table:name`) and otherwise from `Sheet N`. Legacy `.xls` has no XML sheet list, so it uses `Sheet N` when the export omits the name. Presentations become one section per slide. Impress publishes a frameset and one HTML file per slide (`text0.html`, `text1.html`, and so on). Those files are concatenated. The slide title is the section heading. `imgN.html`, the outline, and the speaker notes are not extra sections.
 
-`extractImages` false keeps the alt text and writes no image file. `true` writes each embedded image into `ImageDir` as `{stem}-{n}.{ext}` and links that base name. The stem is the upload name, with characters outside `[A-Za-z0-9._-]` removed, so two documents in one zip do not collide. Remote `http` and `https` image URLs stay remote. They are not downloaded.
+`extractImages` is the HTML engine's behavior. `true` writes each local image and data URI into `ImageDir` as `{stem}-{n}.{ext}` and links that base name. `false` leaves the image link and writes no file. Paths that leave the export directory are ignored. Remote `http` and `https` URLs stay remote and are not downloaded.
 
 ### Quality limits
 
 - The Markdown is linear. Text boxes, floating shapes, SmartArt, headers, footers, comments, and tracked changes are dropped or flattened. Fonts and colors do not survive.
-- Spreadsheet formulas become the cached displayed values. Charts are images or are omitted. Merged cells follow the table plugin (an empty cell, or the same text repeated). Column widths are dropped.
+- Spreadsheet formulas become the cached displayed values. Charts are images or are omitted. Merged cells follow the table plugin. Column widths are dropped.
 - Slide masters, animations, and speaker notes are omitted. A slide that is only a positioned drawing may come through as an image, or as an empty section.
 - Password-protected documents fail. The convert route has no password field.
-- `commonmark` does not emit GFM tables, `~~strikethrough~~`, or task lists.
-- An image whose source is outside the export directory is not copied. The alt text remains. `file://` paths are held to that directory.
+- `commonmark` does not emit GFM tables, `~~strikethrough~~`, or task lists. The checkbox rewrite runs only for `gfm`.
+- Image limits are the HTML engine's: 200 images, 32 MiB each, 64 MiB together. Extensions the HTML engine does not treat as images, including `.emf` and `.wmf`, are left as links.
 - A document LibreOffice cannot open fails the request. The client sees `Internal Server Error`. The log has the wrapped error.

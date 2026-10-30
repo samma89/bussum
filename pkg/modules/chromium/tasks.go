@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -682,6 +683,23 @@ func waitDelayBeforePrintActionFunc(logger *slog.Logger, disableJavaScript bool,
 		case <-time.After(delay):
 			return nil
 		}
+	}
+}
+
+func captureDocumentHTMLActionFunc(logger *slog.Logger, html *string) chromedp.ActionFunc {
+	return func(ctx context.Context) error {
+		logger.DebugContext(ctx, "capture document HTML")
+
+		err := chromedp.Evaluate(`document.documentElement.outerHTML`, html).Do(ctx)
+		if err != nil {
+			return fmt.Errorf("evaluate document HTML: %w", err)
+		}
+
+		if html == nil || strings.TrimSpace(*html) == "" {
+			return errors.New("document HTML is empty")
+		}
+
+		return nil
 	}
 }
 

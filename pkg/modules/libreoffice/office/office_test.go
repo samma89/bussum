@@ -208,8 +208,8 @@ func TestMarkdownFromExport_WriterCommonMark(t *testing.T) {
 		Filename:      "notes.docx",
 	}, kindText, nil)
 
-	requireContains(t, md, "# AlphaHeading", "BravoBullet", "CharlieLink", "FoxtrotStrike", "DeltaCell", "DoneItem", "Diagram")
-	requireNotContains(t, md, "~~", "- [x]", "- [ ]", "notes-1.png", "diagram.png", "| ---", "|---")
+	requireContains(t, md, "# AlphaHeading", "BravoBullet", "CharlieLink", "FoxtrotStrike", "DeltaCell", "DoneItem", "Diagram", "diagram.png")
+	requireNotContains(t, md, "~~", "- [x]", "- [ ]", "notes-1.png", "| ---", "|---")
 
 	entries, err := os.ReadDir(imageDir)
 	if err != nil {
@@ -383,26 +383,6 @@ func TestMarkdownFromExport_Images(t *testing.T) {
 	})
 }
 
-func TestDocumentStem(t *testing.T) {
-	for _, tc := range []struct {
-		filename string
-		want     string
-	}{
-		{filename: "notes.docx", want: "notes"},
-		{filename: "my notes.docx", want: "my-notes"},
-		{filename: "../../etc/passwd.docx", want: "passwd"},
-		{filename: "", want: "document"},
-		{filename: "...", want: "document"},
-	} {
-		t.Run(tc.filename, func(t *testing.T) {
-			got := documentStem(tc.filename)
-			if got != tc.want {
-				t.Fatalf("stem = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestOfficeFixtures(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -529,12 +509,13 @@ func mustMarkdown(t *testing.T, dir string, options markdown.Options, kind docKi
 		t.Fatalf("options: %v", err)
 	}
 
-	out, err := markdownFromExport(t.Context(), dir, filepath.Join(dir, "document.html"), kind, names, options)
+	output := filepath.Join(t.TempDir(), "out.md")
+	err = convertOfficeHTML(t.Context(), slog.New(slog.DiscardHandler), dir, filepath.Join(dir, "document.html"), output, kind, names, options)
 	if err != nil {
 		t.Fatalf("markdown: %v", err)
 	}
 
-	return string(out)
+	return readString(t, output)
 }
 
 func writeHTML(t *testing.T, body string) string {

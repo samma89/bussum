@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Ignored title</title>
+    <style>
+      p {
+        color: red;
+      }
+    </style>
+    <script>
+      document.write("from-script");
+    </script>
+  </head>
+  <body>
+    <nav><a href="/secret">Secret nav</a></nav>
+    <div role="navigation"><a href="/also-secret">Also secret</a></div>
+    <!-- secret-comment -->
+    <h1>HTML title</h1>
+    <h2>Section</h2>
+    <p>
+      A paragraph with <strong>bold</strong> and a
+      <a href="https://example.com/docs">link</a>.
+    </p>
+    <ul>
+      <li>
+        one
+        <ul>
+          <li>nested</li>
+        </ul>
+      </li>
+      <li>two</li>
+    </ul>
+    <ol>
+      <li>first</li>
+      <li>second</li>
+    </ol>
+    <blockquote>
+      <p>quoted words</p>
+    </blockquote>
+    <pre><code class="language-go">fmt.Println("hi")</code></pre>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>City</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ada</td>
+          <td>London</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><del>gone</del></p>
+    <p><a href="https://example.com">https://example.com</a></p>
+    <p><img alt="diagram" src="https://example.com/diagram.png" /></p>
+    <noscript>Fallback text</noscript>
+  </body>
+</html>

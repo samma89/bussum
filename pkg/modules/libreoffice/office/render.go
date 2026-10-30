@@ -4,27 +4,46 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 
-	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
-	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
-	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
-	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/strikethrough"
-	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/table"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 
+	"github.com/gotenberg/gotenberg/v8/pkg/modules/htmlmarkdown"
 	"github.com/gotenberg/gotenberg/v8/pkg/modules/markdown"
 )
 
-// markdownFromExport turns a LibreOffice HTML export directory into Markdown.
-// mainPath is the HTML file unoconverter was asked to write. Companion HTML
-// files in root are slide or sheet pages.
-func markdownFromExport(ctx context.Context, root, mainPath string, kind docKind, names []string, options markdown.Options) ([]byte, error) {
+// convertOfficeHTML shapes a LibreOffice HTML export and converts it with
+// [htmlmarkdown.ConvertHTMLBytes]. mainPath is the HTML file unoconverter
+// wrote. Companion HTML files in root are slide or sheet pages. Images are
+// resolved from the directory that contains mainPath.
+func convertOfficeHTML(ctx context.Context, logger *slog.Logger, root, mainPath, outputPath string, kind docKind, names []string, options markdown.Options) error {
+	prepared, err := prepareOfficeHTML(ctx, root, mainPath, kind, names, options.Flavour == markdown.FlavourGFM)
+	if err != nil {
+		return err
+	}
+
+	err = htmlmarkdown.ConvertHTMLBytes(ctx, logger, mainPath, prepared, outputPath, options)
+	if err != nil {
+		return err
+	}
+
+	if options.Flavour != markdown.FlavourGFM {
+		return nil
+	}
+
+	// The shared converter escapes "[". Checkbox items were rewritten to
+	// "[x]" and "[ ]" in the HTML, so the markers have to be bare GFM.
+	return restoreTaskMarkers(outputPath)
+}
+
+func prepareOfficeHTML(ctx context.Context, root, mainPath string, kind docKind, names []string, gfm bool) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("convert html to markdown: %w", err)
+		return nil, fmt.Errorf("prepare office html: %w", err)
 	}
 
 	raw, err := loadDocument(root, mainPath, kind, names)
@@ -45,7 +64,6 @@ func markdownFromExport(ctx context.Context, root, mainPath string, kind docKind
 		ensureSheetHeadings(doc, names)
 	}
 
-	gfm := options.Flavour == markdown.FlavourGFM
 	promoteInlineStyles(doc, gfm)
 
 	if gfm {
@@ -54,32 +72,13 @@ func markdownFromExport(ctx context.Context, root, mainPath string, kind docKind
 
 	dropEmptyParagraphs(doc)
 
-	err = rewriteImages(doc, root, options, documentStem(options.Filename))
+	var buf bytes.Buffer
+	err = html.Render(&buf, doc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("render office html: %w", err)
 	}
 
-	if err = ctx.Err(); err != nil {
-		return nil, fmt.Errorf("convert html to markdown: %w", err)
-	}
-
-	out, err := newConverter(options.Flavour).ConvertNode(doc, converter.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("convert html to markdown: %w", err)
-	}
-
-	out = bytes.TrimSpace(out)
-	if gfm {
-		// The commonmark escaper treats "[" as syntax. The task markers added
-		// above come back as "\[x]" and "\[ ]". GFM only recognises them bare.
-		out = unescapeTaskMarkers(out)
-	}
-
-	if len(out) > 0 {
-		out = append(out, '\n')
-	}
-
-	return out, nil
+	return buf.Bytes(), nil
 }
 
 // taskMarker matches a list item whose checkbox was escaped by the converter.
@@ -89,28 +88,23 @@ func unescapeTaskMarkers(markdown []byte) []byte {
 	return taskMarker.ReplaceAll(markdown, []byte("${1}[${2}]"))
 }
 
-// newConverter builds the HTML-to-Markdown converter for one flavour.
-//
-// html-to-markdown v2.5.2 has no GFM plugin. Tables and strikethrough are
-// separate plugins, which is the GFM behaviour office documents need.
-// commonmark leaves those plugins off, so the same HTML becomes the strict subset.
-func newConverter(flavour markdown.Flavour) *converter.Converter {
-	plugins := []converter.Plugin{
-		base.NewBasePlugin(),
-		commonmark.NewCommonmarkPlugin(),
+func restoreTaskMarkers(path string) error {
+	body, err := os.ReadFile(path) //nolint:gosec // path is the markdown file this conversion just wrote
+	if err != nil {
+		return fmt.Errorf("read markdown file: %w", err)
 	}
 
-	if flavour == markdown.FlavourGFM {
-		plugins = append(plugins,
-			strikethrough.NewStrikethroughPlugin(),
-			table.NewTablePlugin(
-				table.WithHeaderPromotion(true),
-				table.WithSkipEmptyRows(true),
-			),
-		)
+	updated := unescapeTaskMarkers(body)
+	if bytes.Equal(body, updated) {
+		return nil
 	}
 
-	return converter.NewConverter(converter.WithPlugins(plugins...))
+	err = os.WriteFile(path, updated, 0o600) //nolint:gosec // path is the markdown file this conversion just wrote
+	if err != nil {
+		return fmt.Errorf("write markdown file: %w", err)
+	}
+
+	return nil
 }
 
 func unwrapNamedAnchors(doc *html.Node) {

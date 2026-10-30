@@ -123,19 +123,6 @@ func setAttr(n *html.Node, key, val string) {
 	n.Attr = append(n.Attr, html.Attribute{Key: key, Val: val})
 }
 
-func deleteAttr(n *html.Node, key string) {
-	filtered := make([]html.Attribute, 0, len(n.Attr))
-	for _, attribute := range n.Attr {
-		if strings.EqualFold(attribute.Key, key) {
-			continue
-		}
-
-		filtered = append(filtered, attribute)
-	}
-
-	n.Attr = filtered
-}
-
 func rename(n *html.Node, kind atom.Atom, data string) {
 	n.Data = data
 	n.DataAtom = kind
@@ -151,19 +138,6 @@ func unwrap(n *html.Node) {
 		child := n.FirstChild
 		n.RemoveChild(child)
 		parent.InsertBefore(child, n)
-	}
-
-	parent.RemoveChild(n)
-}
-
-func replaceWithText(n *html.Node, text string) {
-	parent := n.Parent
-	if parent == nil {
-		return
-	}
-
-	if strings.TrimSpace(text) != "" {
-		parent.InsertBefore(&html.Node{Type: html.TextNode, Data: text}, n)
 	}
 
 	parent.RemoveChild(n)

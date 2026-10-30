@@ -1054,6 +1054,16 @@ func screenshotUrl(ctx *api.Context, chromium Api, url string, options Screensho
 	return nil
 }
 
+// HandleError maps a Chromium conversion error to a client-facing HTTP error.
+//
+// Routes that drive Chromium, including URL to Markdown, use it so a bad
+// wait expression or a crashed browser produces the same response as the
+// PDF routes. A nil error stays nil. An error this function does not
+// recognize is returned unchanged, and the caller decides the HTTP status.
+func HandleError(err error, options Options) error {
+	return handleChromiumError(err, options)
+}
+
 func handleChromiumError(err error, options Options) error {
 	if err == nil {
 		return nil

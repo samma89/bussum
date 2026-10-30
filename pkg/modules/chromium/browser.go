@@ -61,6 +61,7 @@ type browser interface {
 	gotenberg.Process
 	pdf(ctx context.Context, logger *slog.Logger, url, outputPath string, options PdfOptions, aggregate *networkAggregate) error
 	screenshot(ctx context.Context, logger *slog.Logger, url, outputPath string, options ScreenshotOptions, aggregate *networkAggregate) error
+	html(ctx context.Context, logger *slog.Logger, url string, options Options, aggregate *networkAggregate) (string, error)
 }
 
 type browserArguments struct {
@@ -462,6 +463,32 @@ func (b *chromiumBrowser) screenshot(ctx context.Context, logger *slog.Logger, u
 		// Teardown.
 		page.Close(),
 	})
+}
+
+func (b *chromiumBrowser) html(ctx context.Context, logger *slog.Logger, url string, options Options, aggregate *networkAggregate) (string, error) {
+	// No error wrapping: the same sentinels Pdf and Screenshot return have to
+	// stay visible to the route, which maps them to HTTP responses.
+	var html string
+	err := b.do(ctx, logger, url, options, aggregate, chromedp.Tasks{
+		network.Enable(),
+		fetch.Enable(),
+		runtime.Enable(),
+		clearCacheActionFunc(logger, b.arguments.clearCache),
+		clearCookiesActionFunc(logger, b.arguments.clearCookies),
+		clearStorageActionFunc(logger, b.arguments.clearStorage, url),
+		disableJavaScriptActionFunc(logger, b.arguments.disableJavaScript),
+		setCookiesActionFunc(logger, options.Cookies),
+		userAgentOverride(logger, options.UserAgent),
+		navigateActionFunc(logger, url, options.SkipNetworkIdleEvent, options.SkipNetworkAlmostIdleEvent),
+		emulateMediaTypeActionFunc(logger, options.EmulatedMediaType, options.EmulatedMediaFeatures),
+		waitForExpressionBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitForExpression),
+		waitForSelectorVisibleBeforePrintActionFunc(logger, options.WaitForSelector),
+		waitDelayBeforePrintActionFunc(logger, b.arguments.disableJavaScript, options.WaitDelay),
+		captureDocumentHTMLActionFunc(logger, &html),
+		page.Close(),
+	})
+
+	return html, err
 }
 
 // newIsolatedTarget creates a browser context and opens a blank tab in it, so

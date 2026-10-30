@@ -3,6 +3,7 @@ package office
 import (
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -424,6 +425,19 @@ func htmlEscape(value string) string {
 
 // rebaseImages rewrites local image sources so they stay valid once several
 // HTML files are concatenated into one document at the export root.
+func isRemoteImage(source string) bool {
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return false
+	}
+
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
+}
+
+func isDataImage(source string) bool {
+	return strings.HasPrefix(strings.ToLower(source), "data:")
+}
+
 func rebaseImages(doc *html.Node, fromDir, root string) {
 	var images []*html.Node
 	collect(doc, "img", &images)

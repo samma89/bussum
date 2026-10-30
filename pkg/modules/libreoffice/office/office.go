@@ -163,14 +163,9 @@ func (e *Office) convert(ctx context.Context, logger *slog.Logger, inputPath, ou
 		}
 	}
 
-	markdownBytes, err := markdownFromExport(ctx, dir, htmlPath, documentKind(ext), names, options)
+	err = convertOfficeHTML(ctx, logger, dir, htmlPath, outputPath, documentKind(ext), names, options)
 	if err != nil {
 		return err
-	}
-
-	err = os.WriteFile(outputPath, markdownBytes, 0o600) //nolint:gosec // output path is the request directory
-	if err != nil {
-		return fmt.Errorf("write markdown file: %w", err)
 	}
 
 	logger.DebugContext(ctx, fmt.Sprintf("office converted %s to markdown (flavour %s, extract images %t)", ext, options.Flavour, options.ExtractImages))
