@@ -18,7 +18,15 @@ shift 2
 mkdir -p "$dir"
 
 # Run the probe once. On failure, keep going with empty output.
-raw="$("$@" 2>/dev/null)" || raw=""
+# pdftohtml prints its version on stderr. Other binaries use stdout.
+case "$id" in
+pdf)
+    raw="$("$@" 2>&1 >/dev/null)" || raw=""
+    ;;
+*)
+    raw="$("$@" 2>/dev/null)" || raw=""
+    ;;
+esac
 
 case "$id" in
 pdfcpu)

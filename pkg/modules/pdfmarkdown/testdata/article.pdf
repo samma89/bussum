@@ -1,0 +1,80 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 478 >>
+stream
+BT /F2 24 Tf 1 0 0 1 72 740 Tm (Quarterly Report) Tj ET
+BT /F1 12 Tf 1 0 0 1 72 700 Tm (Revenue grew in the first half. The team shipped) Tj ET
+BT /F1 12 Tf 1 0 0 1 72 684 Tm (the conversion API on time.) Tj ET
+BT /F1 12 Tf 1 0 0 1 72 650 Tm (- First milestone closed in March) Tj ET
+BT /F1 12 Tf 1 0 0 1 72 634 Tm (- Second milestone closed in June) Tj ET
+BT /F1 12 Tf 1 0 0 1 90 610 Tm (1. Review the figures) Tj ET
+BT /F1 12 Tf 1 0 0 1 90 594 Tm (2. Publish the notes) Tj ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Contents 3 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> >>
+endobj
+5 0 obj
+<< /Length 514 >>
+stream
+BT /F2 18 Tf 1 0 0 1 72 740 Tm (Left column) Tj ET
+BT /F2 18 Tf 1 0 0 1 340 740 Tm (Right column) Tj ET
+BT /F1 11 Tf 1 0 0 1 72 710 Tm (Alpha text stays on the left) Tj ET
+BT /F1 11 Tf 1 0 0 1 340 710 Tm (Beta text stays on the right) Tj ET
+BT /F1 11 Tf 1 0 0 1 72 694 Tm (side of this page and should) Tj ET
+BT /F1 11 Tf 1 0 0 1 340 694 Tm (side and comes after the left) Tj ET
+BT /F1 11 Tf 1 0 0 1 72 678 Tm (be read before the right side.) Tj ET
+BT /F1 11 Tf 1 0 0 1 340 678 Tm (column in reading order.) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Contents 5 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> >>
+endobj
+7 0 obj
+<< /Length 447 >>
+stream
+BT /F2 16 Tf 1 0 0 1 72 740 Tm (Scores) Tj ET
+BT /F2 12 Tf 1 0 0 1 72 700 Tm (Name) Tj ET
+BT /F2 12 Tf 1 0 0 1 220 700 Tm (Score) Tj ET
+BT /F2 12 Tf 1 0 0 1 360 700 Tm (City) Tj ET
+BT /F1 12 Tf 1 0 0 1 72 680 Tm (Ada) Tj ET
+BT /F1 12 Tf 1 0 0 1 220 680 Tm (10) Tj ET
+BT /F1 12 Tf 1 0 0 1 360 680 Tm (Paris) Tj ET
+BT /F1 12 Tf 1 0 0 1 72 660 Tm (Grace) Tj ET
+BT /F1 12 Tf 1 0 0 1 220 660 Tm (9) Tj ET
+BT /F1 12 Tf 1 0 0 1 360 660 Tm (London) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Contents 7 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> >>
+endobj
+9 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+endobj
+10 0 obj
+<< /Type /Catalog /Pages 9 0 R >>
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000009 00000 n 
+0000000079 00000 n 
+0000000154 00000 n 
+0000000682 00000 n 
+0000000818 00000 n 
+0000001382 00000 n 
+0000001518 00000 n 
+0000002015 00000 n 
+0000002151 00000 n 
+0000002220 00000 n 
+trailer
+<< /Size 11 /Root 10 0 R >>
+startxref
+2270
+%%EOF

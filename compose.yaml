@@ -80,6 +80,7 @@ services:
       - "--markdown-flavour=${MARKDOWN_FLAVOUR}"
       - "--markdown-extract-images=${MARKDOWN_EXTRACT_IMAGES}"
       - "--markdown-disable-routes=${MARKDOWN_DISABLE_ROUTES}"
+      - "--pdf-markdown-page-separator=${PDF_MARKDOWN_PAGE_SEPARATOR}"
       - "--log-level=${LOG_LEVEL}"
       - "--log-fields-prefix=${LOG_FIELDS_PREFIX}"
       - "--log-std-format=${LOG_STD_FORMAT}"
