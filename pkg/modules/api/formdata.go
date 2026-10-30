@@ -451,6 +451,30 @@ func (form *FormData) MandatoryPaths(extensions []string, target *[]string) *For
 	return form
 }
 
+// AllPaths binds the absolute paths of every uploaded file that is not a
+// reserved side-car field (embeds, watermark, stamp, facturxXml). The order
+// matches [FormData.Paths].
+func (form *FormData) AllPaths(target *[]string) *FormData {
+	if form.errors != nil {
+		return form
+	}
+
+	seen := make(map[string]struct{}, len(form.files))
+	extensions := make([]string, 0, len(form.files))
+
+	for filename := range form.files {
+		ext := strings.ToLower(filepath.Ext(filename))
+		if _, ok := seen[ext]; ok {
+			continue
+		}
+
+		seen[ext] = struct{}{}
+		extensions = append(extensions, ext)
+	}
+
+	return form.paths(extensions, target)
+}
+
 // Watermark binds the absolute path of the form data file that should be
 // used as a watermark source. Only a file uploaded with the "watermark"
 // field name will be included.
