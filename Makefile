@@ -82,6 +82,10 @@ LIBREOFFICE_DENY_PRIVATE_IPS=false
 LIBREOFFICE_DENY_PUBLIC_IPS=false
 LIBREOFFICE_ENABLE_ENVIRONMENT_PROXY=false
 LIBREOFFICE_DISABLE_ROUTES=false
+MARKDOWN_ENGINES=
+MARKDOWN_FLAVOUR=gfm
+MARKDOWN_EXTRACT_IMAGES=false
+MARKDOWN_DISABLE_ROUTES=false
 LOG_LEVEL=info
 LOG_FIELDS_PREFIX=
 LOG_STD_FORMAT=auto
@@ -167,6 +171,8 @@ NO_CONCURRENCY=false
 # libreoffice
 # libreoffice-convert
 # libreoffice-ssrf
+# markdown
+# markdown-convert
 # output-filename
 # pdfengines
 # pdfengines-convert

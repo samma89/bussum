@@ -1000,3 +1000,17 @@ func TestNewContext_BodyLimitBoundsIngress(t *testing.T) {
 		})
 	}
 }
+
+func TestContext_GeneratePathFromFilename_NilMap(t *testing.T) {
+	ctx := &Context{dirPath: t.TempDir()}
+
+	path := ctx.GeneratePathFromFilename("notes.md")
+
+	if got := ctx.OriginalFilename(path); got != "notes.md" {
+		t.Fatalf("original filename = %q, want %q", got, "notes.md")
+	}
+
+	if !strings.HasPrefix(path, ctx.dirPath+"/") {
+		t.Fatalf("path %q is outside %q", path, ctx.dirPath)
+	}
+}

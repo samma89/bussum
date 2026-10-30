@@ -716,6 +716,11 @@ func (ctx *Context) GeneratePath(extension string) string {
 func (ctx *Context) GeneratePathFromFilename(filename string) string {
 	safeName := uuid.New().String() + safeExt(filename)
 	path := fmt.Sprintf("%s/%s", ctx.dirPath, safeName)
+	// newContext allocates the map. A hand-built context, which is what the
+	// tests use, does not. Writing a nil map would panic on the way to a 500.
+	if ctx.diskToOriginal == nil {
+		ctx.diskToOriginal = make(map[string]string)
+	}
 	ctx.diskToOriginal[path] = filename
 	return path
 }

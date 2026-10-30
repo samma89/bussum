@@ -1651,6 +1651,62 @@ func TestFormData_Paths(t *testing.T) {
 	}
 }
 
+func TestFormData_AllPaths(t *testing.T) {
+	for _, tc := range []struct {
+		scenario string
+		form     *FormData
+		expect   []string
+	}{
+		{
+			scenario: "no file",
+			form:     &FormData{},
+			expect:   nil,
+		},
+		{
+			scenario: "every non-reserved file, alphanumeric order",
+			form: &FormData{
+				files: map[string]string{
+					"b.txt": "/b.txt",
+					"a.pdf": "/a.pdf",
+				},
+			},
+			expect: []string{"/a.pdf", "/b.txt"},
+		},
+		{
+			scenario: "reserved side-car fields are excluded",
+			form: &FormData{
+				files: map[string]string{
+					"notes.txt": "/notes.txt",
+					"logo.png":  "/logo.png",
+				},
+				filesByField: map[string][]string{
+					WatermarkFormField: {"/logo.png"},
+				},
+			},
+			expect: []string{"/notes.txt"},
+		},
+		{
+			scenario: "existing form error skips binding",
+			form: &FormData{
+				files: map[string]string{
+					"notes.txt": "/notes.txt",
+				},
+				errors: errors.New("flavour"),
+			},
+			expect: nil,
+		},
+	} {
+		t.Run(tc.scenario, func(t *testing.T) {
+			var actual []string
+			tc.form.AllPaths(&actual)
+
+			if !reflect.DeepEqual(actual, tc.expect) {
+				t.Errorf("expected %v but got: %v", tc.expect, actual)
+			}
+		})
+	}
+}
+
 func TestFormData_MandatoryPaths(t *testing.T) {
 	for _, tc := range []struct {
 		scenario    string
