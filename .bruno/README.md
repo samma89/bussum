@@ -15,6 +15,7 @@
 ├── Chromium/Convert/                # POST routes grouped by module
 ├── Chromium/Screenshot/
 ├── LibreOffice/
+├── Markdown/
 └── PDF Engines/<Feature>/           # One folder per feature (Merge, Split, Rotate, ...)
 ```
 
