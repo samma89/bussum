@@ -6,7 +6,7 @@ Only the latest version receives security updates and patches. Keep your environ
 
 ## Reporting a Vulnerability
 
-Do not publish vulnerabilities publicly. Report them through [GitHub's private vulnerability reporting](https://github.com/gotenberg/gotenberg/security/advisories/new).
+Do not publish vulnerabilities publicly. Report them through [GitHub's private vulnerability reporting](https://github.com/samma89/bussum/security/advisories/new) on this repository. Bussum is a fork of [gotenberg/gotenberg](https://github.com/gotenberg/gotenberg). Issues that exist only in upstream code should also be reported there.
 
 Include:
 

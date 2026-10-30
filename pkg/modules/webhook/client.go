@@ -103,7 +103,7 @@ func (c client) send(ctx context.Context, body io.Reader, headers map[string]str
 	// Inject trace context into outbound request headers.
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
-	req.Header.Set("User-Agent", "Gotenberg")
+	req.Header.Set("User-Agent", "Bussum")
 
 	// Extra HTTP headers are the custom headers from the user.
 	for key, value := range c.extraHttpHeaders {
@@ -224,7 +224,7 @@ func (c client) sendEvent(ctx context.Context, correlationIdHeader, correlationI
 
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
-	req.Header.Set("User-Agent", "Gotenberg")
+	req.Header.Set("User-Agent", "Bussum")
 	for key, value := range c.extraHttpHeaders {
 		req.Header.Set(key, value)
 	}

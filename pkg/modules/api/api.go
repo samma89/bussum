@@ -666,7 +666,7 @@ func (a *Api) Start() error {
 	a.srv.GET(
 		a.rootPath,
 		func(c *echo.Context) error {
-			return c.HTML(http.StatusOK, `Hey, Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀`)
+			return c.HTML(http.StatusOK, `Hey, Bussum has no UI, it's an API. Head to the <a href="https://github.com/samma89/bussum">repository</a> to learn how to interact with it.`)
 		},
 		securityMiddleware,
 		versionHeader,

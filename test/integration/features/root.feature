@@ -8,7 +8,7 @@ Feature: /
     Then the response header "Content-Type" should be "text/html; charset=UTF-8"
     Then the response body should match string:
       """
-      Hey, Gotenberg has no UI, it's an API. Head to the <a href="https://gotenberg.dev">documentation</a> to learn how to interact with it 🚀
+      Hey, Bussum has no UI, it's an API. Head to the <a href="https://github.com/samma89/bussum">repository</a> to learn how to interact with it.
       """
 
   Scenario: GET / (Gotenberg Trace)

@@ -19,22 +19,21 @@ import (
 // See https://patorjk.com/software/taag/#p=display&f=Small%20Slant&t=Gotenberg.
 // Credits: https://github.com/labstack/echo/blob/v4.3.0/echo.go#L240.
 const banner = `
-  _____     __           __               
- / ___/__  / /____ ___  / /  ___ _______ _
-/ (_ / _ \/ __/ -_) _ \/ _ \/ -_) __/ _ '/
-\___/\___/\__/\__/_//_/_.__/\__/_/  \_, / 
-                                   /___/
+  ___
+ | _ )_  _ ___ ___ _   _ _ __
+ | _ \ || (_-<(_-<| | | | '  \
+ |___/\_,_/__/__/ \_,_|_|_|_|
 
-A Docker-based API for converting documents to PDF.
+A Docker-based API for converting documents to Markdown.
+A fork of gotenberg/gotenberg.
 Version: %s
 -------------------------------------------------------
 `
 
-// Version is the... version of the Gotenberg application. We set it at the
-// build stage of the Docker image.
+// Version is the version of the Bussum application. The Docker build sets it.
 var Version = "snapshot"
 
-// Run starts the Gotenberg application. Call this in the main of your program.
+// Run starts the Bussum application. Call this in the main of your program.
 func Run() {
 	gotenberg.Version = Version
 
@@ -114,7 +113,7 @@ func Run() {
 	// Initialize telemetry (logging + OTEL).
 	serviceName := os.Getenv("OTEL_SERVICE_NAME")
 	if serviceName == "" {
-		serviceName = "gotenberg"
+		serviceName = "bussum"
 	}
 
 	telemetryCfg := gotenberg.TelemetryConfig{

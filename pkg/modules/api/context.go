@@ -373,7 +373,7 @@ func newContext(echoCtx *echo.Context, logger *slog.Logger, fs *gotenberg.FileSy
 					return fmt.Errorf("create request to '%s': %w", dl.Url, err)
 				}
 
-				req.Header.Set("User-Agent", "Gotenberg")
+				req.Header.Set("User-Agent", "Bussum")
 				for key, value := range dl.ExtraHttpHeaders {
 					req.Header.Set(key, value)
 				}
