@@ -151,3 +151,31 @@ Out of scope. OCR needs an engine such as Tesseract, plus a layout pass, and it 
 - PDF: an engine for `.pdf`, and `poppler-utils` in the image.
 
 The integration scenario `test/integration/features/markdown_convert.feature` treats `.xyz` as unsupported so those units do not have to edit it. A unit that wants a new form field adds it with a default that preserves the current response.
+
+## PDF engine
+
+The `pdf` module converts `.pdf`. The package is `pkg/modules/pdfmarkdown`. The module ID is `pdf`.
+
+Poppler in this image is 25.03.0, from Debian 13 `poppler-utils`. `pdftotext -markdown` is not a flag in that release. The manual's option list ends at `-h`. The engine runs `pdftohtml -xml -zoom 1` and builds Markdown in Go from the font size and the position of each text run. `pdftohtml -s` emits absolutely positioned HTML, where headings and tables are not elements.
+
+A line whose font is at least 1.15 times the body size, and at most 14 words, becomes a heading. The largest sizes are `#`, then `##`, then `###`. A wide vertical gap splits the page into columns, and each column is read from top to bottom before the next one. That is what fixes a PDF whose content stream stores the columns row by row. Two or more short aligned rows become a table. `gfm` emits a pipe table. `commonmark` emits an HTML table. A line that starts with `-`, `*`, a bullet, or `1.` becomes a list. Wrapped lines with the same font and indent join into a paragraph. A line that ends with `-` joins the next line when that line starts with a lowercase letter.
+
+Pages are separated by `---`. `--pdf-markdown-page-separator` (env `PDF_MARKDOWN_PAGE_SEPARATOR`) replaces that marker. An empty value leaves a blank line. The two characters `\n` in the value become a newline.
+
+The default `extractImages` value is false. The engine then passes `-i` and writes no images. `true` keeps Poppler's images, copies them into `ImageDir`, and links `![](stem-1.jpg)`. Names use the upload stem so two PDFs in one request do not collide.
+
+`PDFTOHTML_BIN_PATH` is the absolute path of `pdftohtml`. The image sets `/usr/bin/pdftohtml`. The request context is the timeout. `gotenberg.CommandContext` kills the process group when the request is cancelled, same as the PDF engines. The client span is `pdf.Convert`.
+
+A trailer that contains `/Encrypt` is HTTP 400. The body is `Invalid 'files' form field: '<name>' is encrypted. Remove the password and try again.` An owner password with an empty user password is rejected too, even when Poppler could still read the text. A PDF with no letters or digits is HTTP 400. The body is `Invalid 'files' form field: '<name>' has no extractable text. Scanned pages need OCR, which this engine does not do.` Neither case writes an empty Markdown file.
+
+`poppler-utils` 25.03.0 is 723 KiB installed. `libpoppler147` is 4857 KiB installed. The Dockerfile installs them with `--no-install-recommends`, so `poppler-data` is absent. That recommendation is the CJK CMap set and is several times the size of the library. Chromium already supplies Cairo, NSS, fontconfig, FreeType, JPEG, and PNG, so the full image grows by libpoppler, the utils, and a few codecs Chromium does not ship (OpenJPEG, libtiff, Little CMS, gpgmepp). That is on the order of 8 to 12 MiB. This tree was checked without a Docker build. The figure is the Debian package installed size.
+
+Limits:
+
+- Heading level is a size ratio. The PDF outline is ignored.
+- A two-column page of long lines is read column by column. A grid of short cells is a table. Long sentences inside table cells can be read as columns.
+- A scanned page that still has a text page number is converted.
+- A content stream that contains the bytes `/Encrypt` followed by an object reference is rejected.
+- Rotated text, running headers, and footers are ordinary lines.
+- There is no OCR.
+- CJK text is weaker without `poppler-data`.

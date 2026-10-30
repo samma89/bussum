@@ -86,6 +86,7 @@ MARKDOWN_ENGINES=
 MARKDOWN_FLAVOUR=gfm
 MARKDOWN_EXTRACT_IMAGES=false
 MARKDOWN_DISABLE_ROUTES=false
+PDF_MARKDOWN_PAGE_SEPARATOR=---
 LOG_LEVEL=info
 LOG_FIELDS_PREFIX=
 LOG_STD_FORMAT=auto
@@ -173,6 +174,7 @@ NO_CONCURRENCY=false
 # libreoffice-ssrf
 # markdown
 # markdown-convert
+# markdown-pdf
 # output-filename
 # pdfengines
 # pdfengines-convert
