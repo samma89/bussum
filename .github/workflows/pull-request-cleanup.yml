@@ -10,8 +10,11 @@ permissions:
 jobs:
   cleanup:
     name: Cleanup Docker images
+    # A fork without Docker Hub credentials used to fail this job with HTTP 401.
+    # Skip it unless both secrets are set. continue-on-error does not turn a
+    # failed check green.
+    if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Check out code
         uses: actions/checkout@v7
