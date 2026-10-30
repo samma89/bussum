@@ -105,18 +105,15 @@ var (
 // rejects file:// URLs outside /tmp.
 const defaultDenyListPattern = `^file:(?!//\/tmp/).*`
 
-// Chromium is a module that provides both an [Api] and routes for converting
-// an HTML document to PDF.
+// Chromium is a module that runs a browser for the Markdown URL route.
 type Chromium struct {
 	autoStart      bool
-	disableRoutes  bool
 	maxConcurrency int64
 	args           browserArguments
 
 	logger     *slog.Logger
 	browser    browser
 	supervisor gotenberg.ProcessSupervisor
-	engine     gotenberg.PdfEngine
 
 	version     string
 	versionOnce sync.Once
@@ -509,7 +506,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 			fs.Bool("chromium-clear-cookies", false, "Clear Chromium cookies between each conversion - only applies with --chromium-shared-browser-context")
 			fs.Bool("chromium-clear-storage", false, "Clear Chromium local storage between each conversion - only applies with --chromium-shared-browser-context")
 			fs.Bool("chromium-disable-javascript", false, "Disable JavaScript")
-			fs.Bool("chromium-disable-routes", false, "Disable the routes")
 
 			// Deprecated flags.
 			fs.Bool("chromium-incognito", false, "Start Chromium with incognito mode")
@@ -528,7 +524,6 @@ func (mod *Chromium) Descriptor() gotenberg.ModuleDescriptor {
 func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	flags := ctx.ParsedFlags()
 	mod.autoStart = flags.MustBool("chromium-auto-start")
-	mod.disableRoutes = flags.MustBool("chromium-disable-routes")
 	mod.maxConcurrency = flags.MustInt64("chromium-max-concurrency")
 
 	binPath, ok := os.LookupEnv("CHROMIUM_BIN_PATH")
@@ -538,7 +533,7 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 
 	hyphenDataDirPath, ok := os.LookupEnv("CHROMIUM_HYPHEN_DATA_DIR_PATH")
 	if !ok {
-		return errors.New("CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable is not set; set it to the absolute path of the Chromium hyphenation data directory (it ships in the Gotenberg image)")
+		return errors.New("CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable is not set; set it to the absolute path of the Chromium hyphenation data directory (it ships in the Bussum image)")
 	}
 
 	sharedBrowserContext := flags.MustBool("chromium-shared-browser-context")
@@ -575,22 +570,11 @@ func (mod *Chromium) Provision(ctx *gotenberg.Context) error {
 	mod.browser = newChromiumBrowser(mod.args)
 	mod.supervisor = gotenberg.NewProcessSupervisor(mod.logger, "chromium", mod.browser, flags.MustInt64("chromium-restart-after"), flags.MustInt64("chromium-max-queue-size"), mod.maxConcurrency, flags.MustDuration("chromium-idle-shutdown-timeout"))
 
-	// PDF Engine.
-	provider, err := ctx.Module(new(gotenberg.PdfEngineProvider))
-	if err != nil {
-		return fmt.Errorf("get PDF engine provider: %w", err)
-	}
-	engine, err := provider.(gotenberg.PdfEngineProvider).PdfEngine()
-	if err != nil {
-		return fmt.Errorf("get PDF engine: %w", err)
-	}
-	mod.engine = engine
-
 	// Metrics.
 	meter := gotenberg.Meter()
 
 	// Observable gauges.
-	_, err = meter.Int64ObservableGauge(
+	_, err := meter.Int64ObservableGauge(
 		"chromium.requests.active",
 		metric.WithDescription("Current number of active Chromium requests"),
 		metric.WithUnit("{request}"),
@@ -730,7 +714,7 @@ func (mod *Chromium) Validate() error {
 
 	_, err = os.Stat(mod.args.hyphenDataDirPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("Chromium hyphenation data directory does not exist at %q; check the CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable (it ships in the Gotenberg image): %w", mod.args.hyphenDataDirPath, err)
+		return fmt.Errorf("Chromium hyphenation data directory does not exist at %q; check the CHROMIUM_HYPHEN_DATA_DIR_PATH environment variable (it ships in the Bussum image): %w", mod.args.hyphenDataDirPath, err)
 	}
 
 	return nil
@@ -884,26 +868,16 @@ func (mod *Chromium) Ready() error {
 	}
 }
 
-// Chromium returns an [Api] for interacting with Chromium for converting HTML
-// documents to PDF.
+// Chromium returns an [Api] for rendering pages. The Markdown URL route uses
+// [Api.HTML]. PDF and screenshot routes are not registered.
 func (mod *Chromium) Chromium() (Api, error) {
 	return mod, nil
 }
 
-// Routes returns the HTTP routes.
+// Routes returns no routes. PDF conversion and screenshots are not part of
+// Bussum. Page rendering is exposed by the Markdown URL route.
 func (mod *Chromium) Routes() ([]api.Route, error) {
-	if mod.disableRoutes {
-		return nil, nil
-	}
-
-	return []api.Route{
-		convertUrlRoute(mod, mod.engine),
-		screenshotUrlRoute(mod),
-		convertHtmlRoute(mod, mod.engine),
-		screenshotHtmlRoute(mod),
-		convertMarkdownRoute(mod, mod.engine),
-		screenshotMarkdownRoute(mod),
-	}, nil
+	return nil, nil
 }
 
 // Pdf converts a URL to PDF.

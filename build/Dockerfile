@@ -4,34 +4,9 @@
 ARG GOLANG_VERSION=1.27.3
 
 # ----------------------------------------------
-# pdfcpu binary build stage
+# Bussum binary build stage
 # ----------------------------------------------
-# Note: this stage is required as pdfcpu does not release an armhf variant by
-# default.
-FROM golang:$GOLANG_VERSION AS pdfcpu-binary-stage
-
-# See https://github.com/pdfcpu/pdfcpu/releases.
-ARG PDFCPU_VERSION=v0.16.3
-ENV CGO_ENABLED=0
-
-# Define the working directory outside of $GOPATH (we're using go modules).
-WORKDIR /home
-
-RUN curl -Ls "https://github.com/pdfcpu/pdfcpu/archive/refs/tags/$PDFCPU_VERSION.tar.gz" -o pdfcpu.tar.gz \
-    && tar --strip-components=1 -xvzf pdfcpu.tar.gz
-
-# Install module dependencies.
-RUN go mod download \
-    && go mod verify
-
-RUN go build -o pdfcpu -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model.VersionStr=$PDFCPU_VERSION' -X main.builtBy=gotenberg" ./cmd/pdfcpu \
-    # Verify installation.
-    && ./pdfcpu version
-
-# ----------------------------------------------
-# Gotenberg binary build stage
-# ----------------------------------------------
-FROM golang:$GOLANG_VERSION AS gotenberg-binary-stage
+FROM golang:$GOLANG_VERSION AS bussum-binary-stage
 
 ARG GOTENBERG_VERSION=snapshot
 ENV CGO_ENABLED=0
@@ -49,56 +24,14 @@ RUN go mod download \
 COPY cmd ./cmd
 COPY pkg ./pkg
 
-RUN go build -o gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go \
-    && go build -o gotenberg-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg-chromium/main.go \
-    && go build -o gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg-libreoffice/main.go
-
-# ----------------------------------------------
-# Custom JRE stage
-# Credits: https://github.com/jodconverter/docker-image-jodconverter-runtime
-# ----------------------------------------------
-FROM debian:13-slim AS custom-jre-stage
-
-# APT_SNAPSHOT busts every layer below it when CI rotates the value, weekly.
-# Without it a persistent build cache turns the unpinned "apt-get upgrade" into
-# a cache hit and the published image keeps shipping the package versions that
-# were current when the cache was first populated.
-ARG APT_SNAPSHOT=""
-
-RUN echo "apt snapshot: $APT_SNAPSHOT" \
-    && apt-get update -qq \
-    && apt-get upgrade -yqq \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends default-jdk-headless binutils
-
-# Note: jdeps helps finding which modules a JAR requires.
-# Currently only for PDFtk, as we don't rely on LibreOffice UNO Java SDK.
-ENV JAVA_MODULES=java.base,java.desktop,java.naming,java.sql
-
-RUN jlink \
-    --add-modules $JAVA_MODULES \
-    --strip-debug \
-    --no-man-pages \
-    --no-header-files \
-    --compress=2 \
-    --output /custom-jre
-
-# Remove the eMudhra roots (emSign ECC Root CA - G3 and AAA Certificate
-# Services) from the JRE trust store. Debian's ca-certificates and Chromium
-# already distrust them, but Debian's OpenJDK still ships them in the bundled
-# cacerts. The loop skips an alias once a newer OpenJDK drops it.
-RUN for alias in "emsigneccrootcag3 [jdk]" "comodoaaaca [jdk]"; do \
-        if keytool -list -keystore /custom-jre/lib/security/cacerts -storepass changeit -alias "$alias" > /dev/null 2>&1; then \
-            keytool -delete -keystore /custom-jre/lib/security/cacerts -storepass changeit -alias "$alias"; \
-        fi; \
-    done
+RUN go build -o bussum -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg/main.go \
+    && go build -o bussum-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg-chromium/main.go \
+    && go build -o bussum-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=$GOTENBERG_VERSION'" cmd/gotenberg-libreoffice/main.go
 
 # ----------------------------------------------
 # Downloader stage
 # ----------------------------------------------
 FROM debian:13-slim AS downloader-stage
-
-# See https://gitlab.com/pdftk-java/pdftk/-/releases - Binary package.
-ARG PDFTK_VERSION=v3.3.3
 
 RUN apt-get update -qq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates
@@ -108,9 +41,6 @@ WORKDIR /downloads
 RUN curl -Ls https://raw.githubusercontent.com/gotenberg/unoconverter/v0.5.0/unoconv -o unoconverter \
     && chmod +x unoconverter
 
-RUN curl -o pdftk-all.jar "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/$PDFTK_VERSION/pdftk-all.jar" \
-    && chmod a+x pdftk-all.jar
-
 # ----------------------------------------------
 # Base image stage
 # ----------------------------------------------
@@ -118,10 +48,6 @@ FROM debian:13-slim AS base-image-stage
 
 ARG TIMEZONE=UTC
 ENV TZ=$TIMEZONE
-
-COPY --link --from=custom-jre-stage /custom-jre /opt/java
-
-ENV PATH="/opt/java/bin:${PATH}"
 
 # ----------------------------------------------
 # Common stage
@@ -166,8 +92,6 @@ RUN apt-get update -qq \
         fonts-noto-color-emoji \
         # Tofu prevention.
         fonts-noto-core \
-        # Install QPDF & ExifTool (PDF engines).
-        qpdf exiftool \
         # Poppler pdftohtml for PDF to Markdown. --no-install-recommends
         # leaves out poppler-data (CJK CMap files).
         poppler-utils \
@@ -175,11 +99,6 @@ RUN apt-get update -qq \
     && mkdir -p /usr/share/man/man1 \
     # Cleanup.
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# PDFtk bash wrapper.
-# See https://github.com/gotenberg/gotenberg/pull/273.
-RUN printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"' > /usr/bin/pdftk \
-    && chmod +x /usr/bin/pdftk
 
 # Support for arbitrary user IDs (OpenShift).
 # See:
@@ -197,11 +116,8 @@ RUN usermod -aG root gotenberg \
 # https://github.com/arachnys/athenapdf/commit/ba25a8d80a25d08d58865519c4cd8756dc9a336d.
 COPY --link build/fonts.conf /etc/fonts/conf.d/100-gotenberg.conf
 
-# Copy PDFtk jar.
-COPY --link --from=downloader-stage /downloads/pdftk-all.jar /usr/bin/pdftk-all.jar
-
-# Copy the pdfcpu binary (shared across all variants).
-COPY --link --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
+# Copy the unoconverter script used by LibreOffice.
+COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
 
 # Set default characterset encoding to UTF-8.
 # See:
@@ -210,11 +126,7 @@ COPY --link --from=pdfcpu-binary-stage /home/pdfcpu /usr/bin/
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
-# Environment variables for PDF engines.
-ENV PDFTK_BIN_PATH=/usr/bin/pdftk
-ENV QPDF_BIN_PATH=/usr/bin/qpdf
-ENV EXIFTOOL_BIN_PATH=/usr/bin/exiftool
-ENV PDFCPU_BIN_PATH=/usr/bin/pdfcpu
+# Poppler pdftohtml converts PDF input to Markdown.
 ENV PDFTOHTML_BIN_PATH=/usr/bin/pdftohtml
 
 # Capture backing-binary versions at build time so the running process reports
@@ -225,11 +137,7 @@ ENV GOTENBERG_VERSIONS_DIR_PATH=/opt/gotenberg/versions
 
 COPY --link build/capture-version.sh /opt/gotenberg/capture-version.sh
 
-RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" qpdf "$QPDF_BIN_PATH" --version \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" exiftool "$EXIFTOOL_BIN_PATH" -ver \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdftk "$PDFTK_BIN_PATH" --version \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdfcpu "$PDFCPU_BIN_PATH" version \
-    && bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdf "$PDFTOHTML_BIN_PATH" -v
+RUN bash /opt/gotenberg/capture-version.sh "$GOTENBERG_VERSIONS_DIR_PATH" pdf "$PDFTOHTML_BIN_PATH" -v
 
 # OpenTelemetry defaults (noop - no telemetry overhead unless explicitly enabled).
 ENV OTEL_TRACES_EXPORTER=none
@@ -239,19 +147,19 @@ ENV OTEL_LOGS_EXPORTER=none
 # ----------------------------------------------
 # Final stage: full (Chromium + LibreOffice)
 # ----------------------------------------------
-FROM common-stage AS gotenberg
+FROM common-stage AS bussum
 
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
 ARG TMP_CHROMIUM_VERSION_PPC64EL="146.0.7680.80-1~deb13u1"
 
-LABEL org.opencontainers.image.title="Gotenberg" \
-    org.opencontainers.image.description="A Docker-based API for converting documents to PDF." \
+LABEL org.opencontainers.image.title="Bussum" \
+    org.opencontainers.image.description="A Docker-based API for converting documents to Markdown. A fork of gotenberg/gotenberg." \
     org.opencontainers.image.version="$GOTENBERG_VERSION" \
     org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
-    org.opencontainers.image.documentation="https://gotenberg.dev" \
-    org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
+    org.opencontainers.image.documentation="https://github.com/samma89/bussum" \
+    org.opencontainers.image.source="https://github.com/samma89/bussum"
 
 # Install Chromium.
 # On ppc64el, the latest Chromium is broken, so we pin a known working
@@ -296,7 +204,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
 # COPY instructions last to maximize cache reuse.
 
 # Copy the Gotenberg binary (full variant with all modules).
-COPY --link --from=gotenberg-binary-stage /home/gotenberg /usr/bin/
+COPY --link --from=bussum-binary-stage /home/bussum /usr/bin/
 
 # Copy unoconverter.
 COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
@@ -321,24 +229,24 @@ WORKDIR /home/gotenberg
 EXPOSE 3000
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
-CMD [ "gotenberg" ]
+CMD [ "bussum" ]
 
 # ----------------------------------------------
 # Final stage: Chromium only
 # ----------------------------------------------
-FROM common-stage AS gotenberg-chromium
+FROM common-stage AS bussum-chromium
 
 ARG GOTENBERG_VERSION=snapshot
 ARG GOTENBERG_USER_GID=1001
 ARG GOTENBERG_USER_UID=1001
 ARG TMP_CHROMIUM_VERSION_PPC64EL="146.0.7680.80-1~deb13u1"
 
-LABEL org.opencontainers.image.title="Gotenberg (Chromium)" \
-    org.opencontainers.image.description="A Docker-based API for converting documents to PDF — Chromium variant." \
+LABEL org.opencontainers.image.title="Bussum (Chromium)" \
+    org.opencontainers.image.description="Bussum image with Chromium, for HTML files and URLs. A fork of gotenberg/gotenberg." \
     org.opencontainers.image.version="$GOTENBERG_VERSION" \
     org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
-    org.opencontainers.image.documentation="https://gotenberg.dev" \
-    org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
+    org.opencontainers.image.documentation="https://github.com/samma89/bussum" \
+    org.opencontainers.image.source="https://github.com/samma89/bussum"
 
 # Install Chromium.
 # On ppc64el, the latest Chromium is broken, so we pin a known working
@@ -363,7 +271,7 @@ RUN /bin/bash -c \
 # COPY instructions last to maximize cache reuse.
 
 # Copy the Gotenberg binary (Chromium variant, no LibreOffice modules).
-COPY --link --from=gotenberg-binary-stage /home/gotenberg-chromium /usr/bin/gotenberg
+COPY --link --from=bussum-binary-stage /home/bussum-chromium /usr/bin/bussum
 
 # Copy dictionnaries so that hyphens work on Chromium.
 # See https://github.com/gotenberg/gotenberg/issues/1293.
@@ -384,21 +292,21 @@ WORKDIR /home/gotenberg
 EXPOSE 3000
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
-CMD [ "gotenberg" ]
+CMD [ "bussum" ]
 
 # ----------------------------------------------
 # Final stage: LibreOffice only
 # ----------------------------------------------
-FROM common-stage AS gotenberg-libreoffice
+FROM common-stage AS bussum-libreoffice
 
 ARG GOTENBERG_VERSION=snapshot
 
-LABEL org.opencontainers.image.title="Gotenberg (LibreOffice)" \
-    org.opencontainers.image.description="A Docker-based API for converting documents to PDF — LibreOffice variant." \
+LABEL org.opencontainers.image.title="Bussum (LibreOffice)" \
+    org.opencontainers.image.description="Bussum image with LibreOffice, for Office documents. A fork of gotenberg/gotenberg." \
     org.opencontainers.image.version="$GOTENBERG_VERSION" \
     org.opencontainers.image.authors="Julien Neuhart <neuhart.julien@gmail.com>" \
-    org.opencontainers.image.documentation="https://gotenberg.dev" \
-    org.opencontainers.image.source="https://github.com/gotenberg/gotenberg"
+    org.opencontainers.image.documentation="https://github.com/samma89/bussum" \
+    org.opencontainers.image.source="https://github.com/samma89/bussum"
 
 # Install LibreOffice & unoconverter.
 RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/sources.list \
@@ -423,7 +331,7 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" >> /etc/apt/so
 # COPY instructions last to maximize cache reuse.
 
 # Copy the Gotenberg binary (LibreOffice variant, no Chromium modules).
-COPY --link --from=gotenberg-binary-stage /home/gotenberg-libreoffice /usr/bin/gotenberg
+COPY --link --from=bussum-binary-stage /home/bussum-libreoffice /usr/bin/bussum
 
 # Copy unoconverter.
 COPY --link --from=downloader-stage /downloads/unoconverter /usr/bin/unoconverter
@@ -441,7 +349,7 @@ WORKDIR /home/gotenberg
 EXPOSE 3000
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
-CMD [ "gotenberg" ]
+CMD [ "bussum" ]
 
 # ==============================================================
 # Cloud Run variants
@@ -450,7 +358,7 @@ CMD [ "gotenberg" ]
 # ----------------------------------------------
 # Cloud Run: full (Chromium + LibreOffice)
 # ----------------------------------------------
-FROM gotenberg AS gotenberg-cloudrun
+FROM bussum AS bussum-cloudrun
 
 USER root
 
@@ -471,7 +379,7 @@ USER gotenberg
 # ----------------------------------------------
 # Cloud Run: Chromium only
 # ----------------------------------------------
-FROM gotenberg-chromium AS gotenberg-cloudrun-chromium
+FROM bussum-chromium AS bussum-cloudrun-chromium
 
 USER root
 
@@ -488,7 +396,7 @@ USER gotenberg
 # ----------------------------------------------
 # Cloud Run: LibreOffice only
 # ----------------------------------------------
-FROM gotenberg-libreoffice AS gotenberg-cloudrun-libreoffice
+FROM bussum-libreoffice AS bussum-cloudrun-libreoffice
 
 USER root
 
@@ -509,7 +417,7 @@ USER gotenberg
 # ----------------------------------------------
 # AWS Lambda: full (Chromium + LibreOffice)
 # ----------------------------------------------
-FROM gotenberg AS gotenberg-aws-lambda
+FROM bussum AS bussum-aws-lambda
 
 USER root
 
@@ -527,7 +435,7 @@ USER gotenberg
 # ----------------------------------------------
 # AWS Lambda: Chromium only
 # ----------------------------------------------
-FROM gotenberg-chromium AS gotenberg-aws-lambda-chromium
+FROM bussum-chromium AS bussum-aws-lambda-chromium
 
 USER root
 
@@ -545,7 +453,7 @@ USER gotenberg
 # ----------------------------------------------
 # AWS Lambda: LibreOffice only
 # ----------------------------------------------
-FROM gotenberg-libreoffice AS gotenberg-aws-lambda-libreoffice
+FROM bussum-libreoffice AS bussum-aws-lambda-libreoffice
 
 USER root
 

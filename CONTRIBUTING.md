@@ -1,6 +1,6 @@
-# Contributing to Gotenberg
+# Contributing to Bussum
 
-Gotenberg is a Docker-based API for converting documents to PDF. Two rules override everything else:
+Bussum is a Docker-based API for converting documents to Markdown. It is a fork of [gotenberg/gotenberg](https://github.com/gotenberg/gotenberg). Two rules override everything else:
 
 - **Backward compatibility.** Never rename or remove CLI flags, environment variables, API form fields, or HTTP endpoints without discussion.
 - **Defensive programming.** Assume input is malformed, handle errors explicitly, never panic.
@@ -178,4 +178,4 @@ Before opening the PR, confirm:
 
 - [`test/integration/README.md`](test/integration/README.md) — Gherkin step reference, available tags, writing new tests.
 - [`.bruno/README.md`](.bruno/README.md) — `.bru` file format, conventions, route update checklist.
-- [`pkg/modules/pdfengines/README.md`](pkg/modules/pdfengines/README.md) — adding new engine features (Makefile variable and flag).
+- [`docs/markdown-architecture.md`](docs/markdown-architecture.md): the Markdown engine interface and how to add an engine.

@@ -5,7 +5,7 @@ help: ## Show the help
 	@grep -hE '^[A-Za-z0-9_ \-]*?:.*##.*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
-build: ## Build the Gotenberg's Docker image (use TARGET=gotenberg-chromium or TARGET=gotenberg-libreoffice for variants)
+build: ## Build the Bussum Docker image (use TARGET=bussum-chromium or TARGET=bussum-libreoffice for variants)
 	docker build \
 	--target $(TARGET) \
 	-t $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY):$(GOTENBERG_VERSION) \
@@ -70,7 +70,6 @@ CHROMIUM_SHARED_BROWSER_CONTEXT=false
 CHROMIUM_CLEAR_CACHE=false
 CHROMIUM_CLEAR_COOKIES=false
 CHROMIUM_DISABLE_JAVASCRIPT=false
-CHROMIUM_DISABLE_ROUTES=false
 LIBREOFFICE_RESTART_AFTER=10
 LIBREOFFICE_MAX_QUEUE_SIZE=0
 LIBREOFFICE_IDLE_SHUTDOWN_TIMEOUT=0
@@ -81,7 +80,6 @@ LIBREOFFICE_DENY_LIST=
 LIBREOFFICE_DENY_PRIVATE_IPS=false
 LIBREOFFICE_DENY_PUBLIC_IPS=false
 LIBREOFFICE_ENABLE_ENVIRONMENT_PROXY=false
-LIBREOFFICE_DISABLE_ROUTES=false
 MARKDOWN_ENGINES=
 MARKDOWN_FLAVOUR=gfm
 MARKDOWN_EXTRACT_IMAGES=false
@@ -92,30 +90,12 @@ LOG_FIELDS_PREFIX=
 LOG_STD_FORMAT=auto
 LOG_STD_ENABLE_GCP_FIELDS=false
 LOG_STD_LEVEL_CASE=lower
-PDFENGINES_DISABLE_ROUTES=false
-PDFENGINES_MAX_CONCURRENCY=1
-PDFENGINES_MERGE_ENGINES=qpdf,pdfcpu,pdftk
-PDFENGINES_SPLIT_ENGINES=pdfcpu,qpdf,pdftk
-PDFENGINES_FLATTEN_ENGINES=qpdf
-PDFENGINES_CONVERT_ENGINES=libreoffice-pdfengine
-PDFENGINES_OPTIMIZE_IMAGES_ENGINES=pdfcpu
-PDFENGINES_READ_METADATA_ENGINES=exiftool
-PDFENGINES_WRITE_METADATA_ENGINES=exiftool
-PDFENGINES_READ_BOOKMARKS_ENGINES=pdfcpu
-PDFENGINES_WRITE_BOOKMARKS_ENGINES=pdfcpu
-PDFENGINES_WATERMARK_ENGINES=pdfcpu,pdftk
-PDFENGINES_STAMP_ENGINES=pdfcpu,pdftk
-PDFENGINES_ENCRYPT_ENGINES=qpdf,pdfcpu,pdftk
-PDFENGINES_ROTATE_ENGINES=pdfcpu,pdftk
-PDFENGINES_EMBED_ENGINES=pdfcpu
-PDFENGINES_EMBED_METADATA_ENGINES=qpdf
-PDFENGINES_FACTUR_X_ENGINES=qpdf
-PROMETHEUS_NAMESPACE=gotenberg
+PROMETHEUS_NAMESPACE=bussum
 PROMETHEUS_COLLECT_INTERVAL=1s
 PROMETHEUS_DISABLE_ROUTE_TELEMETRY=true
 PROMETHEUS_DISABLE_COLLECT=false
 PROMETHEUS_METRICS_PATH=/prometheus/metrics
-OTEL_SERVICE_NAME=gotenberg
+OTEL_SERVICE_NAME=bussum
 OTEL_TRACES_EXPORTER=none
 OTEL_METRICS_EXPORTER=none
 OTEL_LOGS_EXPORTER=none
@@ -139,8 +119,8 @@ WEBHOOK_DISABLE=false
 export
 
 .PHONY: run
-run: ## Start a Gotenberg container via Compose
-	docker compose up gotenberg
+run: ## Start a Bussum container via Compose
+	docker compose up bussum
 
 .PHONY: telemetry
 telemetry: ## Start an OpenTelemetry collector and OpenObserve containers via Compose
@@ -157,57 +137,18 @@ test-unit: ## Run unit tests
 PLATFORM=
 NO_CONCURRENCY=false
 # Available tags:
-# chromium
-# chromium-concurrent
-# chromium-convert-html
-# chromium-image-deduplication
-# chromium-convert-markdown
-# chromium-convert-url
-# chromium-screenshot-html
-# chromium-screenshot-markdown
-# chromium-screenshot-url
-# chromium-ssrf
+# Available tags:
 # debug
 # health
-# libreoffice
-# libreoffice-convert
-# libreoffice-ssrf
 # markdown
 # markdown-convert
 # markdown-convert-html
+# markdown-convert-pdf
 # markdown-office
 # markdown-pdf
-# output-filename
-# pdfengines
-# pdfengines-convert
-# pdfengines-embed
-# embed
-# pdfengines-encrypt
-# encrypt
-# pdfengines-flatten
-# flatten
-# pdfengines-optimize
-# optimize
-# pdfengines-merge
-# merge
-# pdfengines-metadata
-# metadata
-# pdfengines-split
-# split
-# pdfengines-watermark
-# watermark
-# pdfengines-stamp
-# stamp
-# pdfengines-rotate
-# rotate
-# factur-x
-# pdfengines-bookmarks
-# bookmarks
 # prometheus-metrics
 # root
 # version
-# webhook
-# download-from
 TAGS=
 
 .PHONY: test-integration

@@ -7,29 +7,26 @@ Gherkin (BDD) via [Godog](https://github.com/cucumber/godog), with `testcontaine
 - Entry point: `test/integration/main_test.go` (build tag: `integration`).
 - Test data: `test/integration/testdata/`.
 
-Each scenario spins up a fresh Gotenberg Docker container via testcontainers. A separate `gotenberg/integration-tools` container provides PDF validation tools (`verapdf`, `pdfinfo`, `pdftotext`).
+Each scenario spins up a fresh Bussum Docker container via testcontainers. The step wording still says "Gotenberg container" because that is the phrase the step definitions match. PDF validation helpers remain in the step package for upstream scenarios that this fork no longer runs.
 
-Run `make build` before `make test-integration`. Integration tests require a Docker image.
+Run `make build` before `make test-integration`. Integration tests require a Docker image. This environment does not build that image in CI.
 
 ## Selective runs
 
 ```bash
 make test-integration TAGS=health
-make test-integration TAGS=chromium-convert-html
-make test-integration TAGS="merge,split"
+make test-integration TAGS=markdown-convert
+make test-integration TAGS="markdown-convert,markdown-convert-html"
 make test-integration NO_CONCURRENCY=true  # disable parallel scenarios
 make test-integration PLATFORM=linux/arm64 # force a specific platform
 ```
 
 Available tags:
 
-| Group       | Tags                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chromium    | `chromium`, `chromium-concurrent`, `chromium-convert-html`, `chromium-image-deduplication`, `chromium-convert-markdown`, `chromium-convert-url`, `chromium-screenshot-html`, `chromium-screenshot-markdown`, `chromium-screenshot-url`, `chromium-ssrf`                                                                                                                                                 |
-| LibreOffice | `libreoffice`, `libreoffice-convert`, `libreoffice-ssrf`                                                                                                                                                                                                                                                                                                                                                |
-| Markdown    | `markdown`, `markdown-convert`, `markdown-convert-html`, `markdown-pdf`                                                                                                                                                                                                                                                                                                                                 |
-| PDF Engines | `pdfengines`, `pdfengines-convert`, `pdfengines-merge`, `merge`, `pdfengines-split`, `split`, `pdfengines-flatten`, `flatten`, `pdfengines-optimize`, `optimize`, `pdfengines-rotate`, `rotate`, `pdfengines-embed`, `embed`, `pdfengines-encrypt`, `encrypt`, `pdfengines-watermark`, `watermark`, `pdfengines-stamp`, `stamp`, `pdfengines-metadata`, `metadata`, `pdfengines-bookmarks`, `bookmarks` |
-| Infra       | `health`, `debug`, `root`, `version`, `output-filename`, `prometheus-metrics`, `webhook`, `download-from`                                                                                                                                                                                                                                                                                               |
+| Group    | Tags                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------ |
+| Markdown | `markdown`, `markdown-convert`, `markdown-convert-html`, `markdown-pdf`, `markdown-office` |
+| Infra    | `health`, `debug`, `root`, `version`, `prometheus-metrics`                                 |
 
 ## Writing a new test
 

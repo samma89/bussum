@@ -1,6 +1,6 @@
 # Markdown conversion
 
-The markdown module turns uploaded documents into Markdown and leaves the PDF modules in place. Office, HTML, and PDF engines plug into the same registry. This unit ships the registry, the route, and a plaintext engine.
+The markdown module turns uploaded documents into Markdown. Office, HTML, and PDF engines plug into the same registry. PDF conversion routes from upstream Gotenberg are not registered.
 
 ## Route
 
@@ -172,7 +172,7 @@ The route is wired into the standard image and the Chromium image. It is not imp
 
 `flavour` and `extractImages` mean the same thing as on the file route, including the process defaults. The other form fields are Chromium's common options (`chromium.FormDataChromiumOptions`): `waitDelay`, `waitForExpression`, `extraHttpHeaders`, and the rest of that set. PDF options are not accepted.
 
-Chromium renders the page. The route reads `document.documentElement.outerHTML` through `chromium.HTML`, then calls `ConvertHTMLBytes`. Navigation uses the same browser session as PDF conversion, so `--chromium-allow-list`, `--chromium-deny-list`, `--chromium-deny-private-ips`, and `--chromium-deny-public-ips` apply. `file://` and any scheme other than `http` or `https` is HTTP 400 before Chromium starts. The default output name is `document.md`. `Gotenberg-Output-Filename` renames it. `--markdown-disable-routes` disables this route together with the file route.
+Chromium renders the page. The route reads `document.documentElement.outerHTML` through `chromium.HTML`, then calls `ConvertHTMLBytes`. Navigation uses the browser, so `--chromium-allow-list`, `--chromium-deny-list`, `--chromium-deny-private-ips`, and `--chromium-deny-public-ips` apply. `file://` and any scheme other than `http` or `https` is HTTP 400 before Chromium starts. The default output name is `document.md`. `Gotenberg-Output-Filename` renames it. `--markdown-disable-routes` disables this route together with the file route.
 
 A rendered page has no local companion files, so `extractImages` on this route only unpacks data URIs.
 

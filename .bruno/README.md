@@ -1,6 +1,6 @@
 # Bruno API Collection
 
-[Bruno](https://www.usebruno.com/) collection mirroring every Gotenberg route. Update the collection when adding or modifying a route.
+[Bruno](https://www.usebruno.com/) collection for the Bussum routes. Bussum is a fork of gotenberg/gotenberg. Update the collection when adding or modifying a route.
 
 ## Structure
 
@@ -12,11 +12,7 @@
 │   ├── Local.bru                   # baseUrl: http://localhost:3000
 │   └── Demo.bru                    # baseUrl: https://demo.gotenberg.dev
 ├── Health & Info/                   # GET routes
-├── Chromium/Convert/                # POST routes grouped by module
-├── Chromium/Screenshot/
-├── LibreOffice/
-├── Markdown/
-└── PDF Engines/<Feature>/           # One folder per feature (Merge, Split, Rotate, ...)
+├── Markdown/                        # POST /forms/markdown routes
 ```
 
 ## `.bru` file format

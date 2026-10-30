@@ -1,20 +1,13 @@
 package libreoffice
 
 import (
-	// Gotenberg modules (LibreOffice variant — no Chromium).
+	// LibreOffice variant: Office documents to Markdown, no Chromium.
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/api"
-	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/exiftool"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/htmlmarkdown"
-	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/api"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/office"
-	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/libreoffice/pdfengine"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/markdown"
-	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/pdfcpu"
-	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/pdfengines"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/pdfmarkdown"
-	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/pdftk"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/prometheus"
-	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/qpdf"
 	_ "github.com/gotenberg/gotenberg/v8/pkg/modules/webhook"
 )
